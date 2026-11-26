@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Verify your email address{% endblock %}
+{% block content %}
+<h1>Verify your email address</h1>
+
+{% if outcome == "confirm" %}
+  <p class="lead">Press Confirm to verify this email address.</p>
+  <form method="post" novalidate>
+    {% csrf_token %}
+    <button type="submit" class="button">Confirm</button>
+  </form>
+{% elif outcome == "verified" %}
+  <p class="notice">Your email address is verified. You can sign in.</p>
+  <p class="aside"><a href="{% url 'sign_in' %}">Sign in</a></p>
+{% else %}
+  <p class="errors">{{ reason }}</p>
+  <p class="aside"><a href="{% url 'sign_in' %}">Sign in</a> · <a href="{% url 'register' %}">Create an account</a></p>
+{% endif %}
+{% endblock %}

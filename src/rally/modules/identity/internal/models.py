@@ -32,6 +32,12 @@ class Account(AbstractBaseUser):
     phone = models.CharField(max_length=32, blank=True, default="")  # PRIVATE, optional
     is_verified = models.BooleanField(default=False)
     verified_at = models.DateTimeField(null=True, blank=True)
+    # Single-use email-verification token, issued at registration and cleared on use.
+    # There is no resend in the MVP (AGENTS.md section 7). It is a credential, not contact
+    # data: it never enters `outbox`, a notification row or a log. M7 reads it at send
+    # time exactly as it reads the delivery address, and drops it again.
+    verification_token = models.CharField(max_length=64, unique=True, null=True, blank=True)
+    verification_requested_at = models.DateTimeField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(default=clock.now, editable=False)
 

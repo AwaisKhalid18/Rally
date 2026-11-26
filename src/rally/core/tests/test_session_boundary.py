@@ -49,13 +49,21 @@ class SessionBoundaryTests(TestCase):
         self.assertTrue(checked, "no protected route was checked")
 
     def test_the_public_routes_answer_without_a_session(self):
-        for name in sorted(PUBLIC_URL_NAMES):
-            try:
-                url = reverse(name)
-            except Exception:
-                continue  # verify_email is routed in slice S2
+        sign_in = reverse("sign_in")
+        urls = {
+            "register": reverse("register"),
+            "sign_in": sign_in,
+            # Any token answers; an unknown one answers 404, which is still an answer and
+            # not a redirect to sign-in.
+            "verify_email": reverse("verify_email", kwargs={"token": "no-such-token"}),
+        }
+        self.assertEqual(set(urls), set(PUBLIC_URL_NAMES))
+
+        for name, url in sorted(urls.items()):
             with self.subTest(route=name):
-                self.assertEqual(self.client.get(url).status_code, 200)
+                response = self.client.get(url)
+                self.assertIn(response.status_code, (200, 404))
+                self.assertNotEqual(response.status_code, 302)
 
     def test_the_allowlist_is_exactly_the_three_account_setup_routes(self):
         self.assertEqual(PUBLIC_URL_NAMES, frozenset({"register", "sign_in", "verify_email"}))

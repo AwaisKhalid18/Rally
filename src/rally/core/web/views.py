@@ -16,7 +16,12 @@ from rally.core.logging import log_operation
 from rally.core.pipeline.session import end_session, start_session
 from rally.modules.identity.api import facade as identity
 
-REGISTERED_MESSAGE = "Account created. Sign in to continue."
+# "queued", not "sent" and never "delivered": at this point the outbox record is
+# committed and nothing has reached the provider yet (AGENTS.md §5 Honest feedback, FE-5).
+REGISTERED_MESSAGE = (
+    "Account created and a verification email is queued. "
+    "Open the link in it to verify your address, then sign in."
+)
 SIGNED_OUT_MESSAGE = "You are signed out."
 
 
@@ -102,3 +107,35 @@ def sign_out(request):
     log_operation("identity.sign_out", "ended", account_id=account_id)
     messages.success(request, SIGNED_OUT_MESSAGE)
     return redirect("sign_in")
+
+
+@require_http_methods(["GET", "POST"])
+def verify_email(request, token: str):
+    """The third and last route reachable without a session (AGENTS.md §5 Sessions).
+
+    The emailed link is a GET and only *shows* a confirmation page; the state change
+    happens on the POST with CSRF from that page (FE-9, AGENTS.md §5 [v5]).
+    """
+    if request.method == "GET":
+        if identity.can_verify(token):
+            return render(request, "verify_email.html", {"outcome": "confirm"})
+        log_operation("identity.verify_email", "rejected", stage="show")
+        return render(
+            request,
+            "verify_email.html",
+            {"outcome": "rejected", "reason": identity.VERIFICATION_UNKNOWN_TOKEN},
+            status=404,
+        )
+
+    result = identity.verify_email(token)
+    if not result.ok:
+        log_operation("identity.verify_email", "rejected", stage="confirm")
+        return render(
+            request,
+            "verify_email.html",
+            {"outcome": "rejected", "reason": result.reason},
+            status=400,
+        )
+
+    log_operation("identity.verify_email", "verified", account_id=result.account_id)
+    return render(request, "verify_email.html", {"outcome": "verified"})

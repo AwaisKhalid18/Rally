@@ -25,6 +25,8 @@ EMAIL_INVALID = credentials.EMAIL_INVALID
 EMAIL_TAKEN = credentials.EMAIL_TAKEN
 PASSWORD_REQUIRED = credentials.PASSWORD_REQUIRED
 PASSWORD_TOO_SHORT = credentials.PASSWORD_TOO_SHORT
+VERIFICATION_UNKNOWN_TOKEN = credentials.VERIFICATION_UNKNOWN_TOKEN
+VERIFICATION_ALREADY_DONE = credentials.VERIFICATION_ALREADY_DONE
 
 VERIFIED_ACCOUNT_VIEW = "v_verified_account"
 
@@ -86,6 +88,38 @@ def account_summary(account_id: int) -> AccountSummary | None:
 def is_verified(account_id: int) -> bool:
     """Verification gate for searchability (M2) and invitation eligibility (M5). ASR-06."""
     return Account.objects.filter(pk=account_id, is_active=True, is_verified=True).exists()
+
+
+@dataclass(frozen=True)
+class VerificationResult:
+    account_id: int | None = None
+    reason: str | None = None
+
+    @property
+    def ok(self) -> bool:
+        return self.account_id is not None
+
+
+def can_verify(token: str) -> bool:
+    """Whether this token would verify something. A read: the confirmation page uses it
+    to show a clear message without changing any state (FE-9, AC3)."""
+    return credentials.token_is_usable(token)
+
+
+def verify_email(token: str) -> VerificationResult:
+    """Burn a single-use token and mark the account verified. FR-01, PRD §12.2, ASR-06."""
+    result = credentials.verify(token)
+    return VerificationResult(account_id=result.account_id, reason=result.reason)
+
+
+def get_verification_token(account_id: int) -> str | None:
+    """The token to put in the verification email, read by M7 at send time only.
+
+    Like `get_delivery_address`, it is used transiently: it is never written to `outbox`,
+    to `notification` or to any log (architecture §6.1, rule 6). Returns None once the
+    account is verified.
+    """
+    return credentials.verification_token_for(account_id)
 
 
 def get_delivery_address(account_id: int) -> str | None:
