@@ -1,0 +1,67 @@
+name: checks
+
+# AC6 - the module-graph check and import-linter run on every push and pull request,
+# together with the Django test suite (Tier 1, AGENTS.md section 10).
+
+on:
+  push:
+    branches: [main, awais, fazeel, ali]
+  pull_request:
+
+jobs:
+  boundaries:
+    name: Architecture boundaries
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # No dependency needed: the checker is standard library only.
+      - name: Module dependency graph
+        run: python tools/check_module_graph.py
+
+      - name: Install
+        run: pip install -r requirements.txt
+
+      - name: Import boundaries
+        run: lint-imports
+        env:
+          PYTHONPATH: src
+
+  tests:
+    name: Django tests
+    runs-on: ubuntu-latest
+    services:
+      db:
+        image: postgres:16
+        env:
+          POSTGRES_DB: rally
+          POSTGRES_USER: rally
+          POSTGRES_PASSWORD: rally
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U rally -d rally"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      RALLY_SECRET_KEY: ci-only-not-a-secret
+      RALLY_DEBUG: "0"
+      RALLY_DB_HOST: 127.0.0.1
+      RALLY_DB_PORT: "5432"
+      RALLY_DB_NAME: rally
+      RALLY_DB_USER: rally
+      RALLY_DB_PASSWORD: rally
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install -r requirements.txt
+      - name: System checks
+        run: python manage.py check
+      - name: Tests
+        run: python manage.py test rally --verbosity 2

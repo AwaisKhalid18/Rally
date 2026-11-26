@@ -1,0 +1,22 @@
+# PostgreSQL for local development (AGENTS.md §1: one database, nothing else).
+# The application itself runs on the host with `python manage.py runserver`.
+services:
+  db:
+    image: postgres:16
+    container_name: rally-postgres
+    environment:
+      POSTGRES_DB: rally
+      POSTGRES_USER: rally
+      POSTGRES_PASSWORD: rally
+    ports:
+      - "5432:5432"
+    volumes:
+      - rally-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rally -d rally"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  rally-pgdata:

@@ -1,0 +1,40 @@
+{
+  "note": [
+    "The declared module dependency graph, transcribed from AGENTS.md section 3 and",
+    "architecture.md 5, 6.1 and 16.6. Anything not listed as an edge is forbidden.",
+    "P Platform is not a node here: every module may use Platform and Platform calls",
+    "every facade, so including it would make the graph trivially cyclic. The Platform",
+    "boundary is checked by import-linter instead (.importlinter).",
+    "'built' records which modules exist in src/ yet; the checker verifies those packages",
+    "are present and that the others are absent, so nobody builds ahead of the plan."
+  ],
+  "modules": [
+    {"id": "identity",     "name": "M1 Identity",           "package": "rally/modules/identity",           "owns": ["account", "session"],                               "built": true},
+    {"id": "profile",      "name": "M2 Profile",            "package": "rally/modules/profiles",           "owns": ["profile", "area"],                                  "built": false},
+    {"id": "availability", "name": "M3 Availability",       "package": "rally/modules/availability",       "owns": ["availability_slot"],                                "built": false},
+    {"id": "search",       "name": "M4 Search and Matching","package": "rally/modules/search",             "owns": [],                                                   "built": false},
+    {"id": "invitations",  "name": "M5 Invitation and Games","package": "rally/modules/invitations",       "owns": ["invitation", "confirmed_game", "game_participant"], "built": false},
+    {"id": "safety",       "name": "M6 Safety",             "package": "rally/modules/safety",             "owns": ["block", "report"],                                  "built": false},
+    {"id": "notification", "name": "M7 Notification",       "package": "rally/modules/notification",       "owns": ["outbox", "notification"],                           "built": false},
+    {"id": "collections",  "name": "M8 Player Collections", "package": "rally/modules/player_collections", "owns": ["favorite", "saved_search"],                         "built": false}
+  ],
+  "edges": [
+    {"from": "search",       "to": "profile",      "kind": "read_view"},
+    {"from": "search",       "to": "availability", "kind": "read_view"},
+    {"from": "search",       "to": "safety",       "kind": "read_view"},
+    {"from": "collections",  "to": "profile",      "kind": "read_view"},
+    {"from": "collections",  "to": "availability", "kind": "read_view"},
+    {"from": "collections",  "to": "safety",       "kind": "read_view"},
+    {"from": "invitations",  "to": "availability", "kind": "facade"},
+    {"from": "invitations",  "to": "safety",       "kind": "facade"},
+    {"from": "invitations",  "to": "profile",      "kind": "facade"},
+    {"from": "profile",      "to": "identity",     "kind": "read_view"},
+    {"from": "notification", "to": "identity",     "kind": "facade"}
+  ],
+  "constraints": {
+    "no_outgoing": ["identity", "safety"],
+    "no_incoming": ["search", "notification", "collections"],
+    "owns_no_tables": ["search"],
+    "read_view_consumers": ["search", "collections", "profile"]
+  }
+}

@@ -1,0 +1,7 @@
+# Rally runtime and boundary tooling.
+# Nothing may be added here without an approved ADR (AGENTS.md rule 10).
+Django==6.1.3
+psycopg[binary]==3.3.9
+
+# Boundary tests (AGENTS.md §1, ADR-007)
+import-linter==2.17

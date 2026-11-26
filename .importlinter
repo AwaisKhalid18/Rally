@@ -1,0 +1,38 @@
+# import-linter contracts (AGENTS.md section 1, rules 1, 2, 9, 12; ADR-007).
+# A contract is added by the slice that first creates the module it governs.
+# Run with:  lint-imports
+
+[importlinter]
+root_packages =
+    rally
+include_external_packages = False
+
+[importlinter:contract:platform-uses-facades-only]
+name = Platform may import a module's api, never its internals or its model shim
+type = forbidden
+# Rule 2 is about the import a file writes down. A facade reaching its own internals is
+# the whole point of a facade, so indirect chains through it are not a violation.
+allow_indirect_imports = true
+source_modules =
+    rally.core
+forbidden_modules =
+    rally.modules.identity.internal
+    rally.modules.identity.models
+
+[importlinter:contract:modules-do-not-import-the-web-layer]
+name = A capability module never imports Platform's web layer
+type = forbidden
+source_modules =
+    rally.modules.identity
+forbidden_modules =
+    rally.core.web
+
+[importlinter:contract:settings-are-not-a-module-dependency]
+name = No capability module imports the project settings or the root URL conf
+type = forbidden
+source_modules =
+    rally.modules.identity
+forbidden_modules =
+    rally.settings
+    rally.urls
+    rally.wsgi
