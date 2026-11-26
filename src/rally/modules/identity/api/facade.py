@@ -1,0 +1,101 @@
+"""M1 Identity — facade.
+
+Published (AGENTS.md §3): `register`, `authenticate`, `is_verified`,
+`get_delivery_address`, `account_summary`, and the read view `v_verified_account`.
+
+Nothing here returns a model instance, an email address or a phone number to a caller
+that is not M1 — with one documented exception, `get_delivery_address`, which M7 calls at
+send time and must never store or log (rule 6, architecture §6.1 recorded refinement).
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+from rally.modules.identity.internal import credentials
+from rally.modules.identity.internal.models import Account
+
+PASSWORD_MIN_LENGTH = credentials.PASSWORD_MIN_LENGTH
+
+# The messages M1 puts in `RegistrationResult.errors` and `AuthenticationResult.reason`.
+# They are part of the published contract: Platform renders them, and a caller outside M1
+# must read them from here rather than from `internal` (rule 2).
+SIGN_IN_FAILED = credentials.SIGN_IN_FAILED
+EMAIL_REQUIRED = credentials.EMAIL_REQUIRED
+EMAIL_INVALID = credentials.EMAIL_INVALID
+EMAIL_TAKEN = credentials.EMAIL_TAKEN
+PASSWORD_REQUIRED = credentials.PASSWORD_REQUIRED
+PASSWORD_TOO_SHORT = credentials.PASSWORD_TOO_SHORT
+
+VERIFIED_ACCOUNT_VIEW = "v_verified_account"
+
+
+@dataclass(frozen=True)
+class RegistrationResult:
+    account_id: int | None = None
+    errors: dict[str, str] = field(default_factory=dict)
+
+    @property
+    def ok(self) -> bool:
+        return self.account_id is not None
+
+
+@dataclass(frozen=True)
+class AuthenticationResult:
+    account_id: int | None = None
+    reason: str | None = None
+
+    @property
+    def ok(self) -> bool:
+        return self.account_id is not None
+
+
+@dataclass(frozen=True)
+class AccountSummary:
+    """The non-private facts about an account. No contact data (rule 6)."""
+
+    account_id: int
+    is_verified: bool
+
+
+def register(email: str, password: str) -> RegistrationResult:
+    """Create an unverified account. FR-01, PRD §12.2, ASR-06."""
+    result = credentials.register(email, password)
+    return RegistrationResult(account_id=result.account_id, errors=dict(result.errors))
+
+
+def authenticate(email: str, password: str) -> AuthenticationResult:
+    """Verify credentials. One generic reason on failure (PRD §12.2)."""
+    account_id = credentials.authenticate(email, password)
+    if account_id is None:
+        return AuthenticationResult(reason=SIGN_IN_FAILED)
+    return AuthenticationResult(account_id=account_id)
+
+
+def account_summary(account_id: int) -> AccountSummary | None:
+    """What Platform may know about the signed-in account. None when it cannot be used."""
+    row = (
+        Account.objects.filter(pk=account_id, is_active=True)
+        .values("pk", "is_verified")
+        .first()
+    )
+    if row is None:
+        return None
+    return AccountSummary(account_id=row["pk"], is_verified=row["is_verified"])
+
+
+def is_verified(account_id: int) -> bool:
+    """Verification gate for searchability (M2) and invitation eligibility (M5). ASR-06."""
+    return Account.objects.filter(pk=account_id, is_active=True, is_verified=True).exists()
+
+
+def get_delivery_address(account_id: int) -> str | None:
+    """The email address to send to, read by M7 at send time only.
+
+    The caller must use it transiently: it is never written to `outbox`, to `notification`
+    or to any log (architecture §6.1, rule 6).
+    """
+    return (
+        Account.objects.filter(pk=account_id, is_active=True)
+        .values_list("email", flat=True)
+        .first()
+    )
