@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     "rally.core",
     # Capability modules — one line per module, added by the slice that first needs it.
     "rally.modules.identity",  # M1
+    "rally.modules.notification",  # M7
 ]
 
 MIDDLEWARE = [
@@ -118,6 +119,25 @@ STATICFILES_DIRS = [SRC_DIR / "rally" / "core" / "web" / "static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
 MESSAGE_STORAGE = "django.contrib.messages.storage.session.SessionStorage"
+
+# --- Email: the one external service (CON-01, ADR-008 S-08) ------------------
+# Only the worker reaches it, through the adapter M7 owns. The default backend writes to
+# the console so the demo never depends on a live provider (G-14); Brevo SMTP is switched
+# on by configuration alone, and its credentials are injected, never committed.
+
+RALLY_SITE_URL = _env("RALLY_SITE_URL", "http://127.0.0.1:8000")
+DEFAULT_FROM_EMAIL = _env("RALLY_FROM_EMAIL", "rally@example.com")
+
+if _flag("RALLY_EMAIL_LIVE", "0"):
+    EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+    EMAIL_HOST = _env("RALLY_SMTP_HOST", "smtp-relay.brevo.com")
+    EMAIL_PORT = int(_env("RALLY_SMTP_PORT", "587"))
+    EMAIL_USE_TLS = True
+    EMAIL_HOST_USER = _env("RALLY_SMTP_USER")
+    EMAIL_HOST_PASSWORD = _env("RALLY_SMTP_PASSWORD")
+    EMAIL_TIMEOUT = int(_env("RALLY_SMTP_TIMEOUT", "10"))
+else:
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
 # --- Logging ----------------------------------------------------------------
 # Structured, operation-level records for the NFR-04 measurement (ASR-12).
