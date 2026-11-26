@@ -15,6 +15,8 @@ from rally.core.pipeline.middleware import PUBLIC_URL_NAMES
 SAMPLE_ARGS = {
     "verify_email": {"token": "no-such-token"},
     "player_profile": {"account_id": 999999},
+    "availability_edit": {"slot_id": 999999},
+    "availability_delete": {"slot_id": 999999},
 }
 
 

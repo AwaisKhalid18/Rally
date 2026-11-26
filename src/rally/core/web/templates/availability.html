@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Your playing times{% endblock %}
+{% block content %}
+<h1>Your available playing times</h1>
+<p class="lead">Add the individual dates and times you could play. Other players see
+these times on your profile and in search results.</p>
+
+<h2>Times you have listed</h2>
+{% if slots %}
+  <ul class="slots">
+    {% for slot in slots %}
+      <li class="slot">
+        <span class="slot-when">{{ slot.summary }}</span>
+        <a href="{% url 'availability_edit' slot.slot_id %}">Edit</a>
+        <form method="post" action="{% url 'availability_delete' slot.slot_id %}" class="inline">
+          {% csrf_token %}
+          <button type="submit" class="link-button">Remove</button>
+        </form>
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p class="notice">No available playing times yet. Add one below so other players can find you.</p>
+{% endif %}
+
+<h2>Add a time</h2>
+<form method="post" action="{% url 'availability' %}" novalidate>
+  {% csrf_token %}
+  {% if error %}<p class="error">{{ error }}</p>{% endif %}
+
+  <div class="field">
+    <label for="id_date">Date</label>
+    <input type="date" name="date" id="id_date" value="{{ values.date }}">
+  </div>
+  <div class="field">
+    <label for="id_start">From</label>
+    <input type="time" name="start" id="id_start" value="{{ values.start }}">
+  </div>
+  <div class="field">
+    <label for="id_end">Until</label>
+    <input type="time" name="end" id="id_end" value="{{ values.end }}">
+    <p class="hint">Times are in the local time zone. A slot stays listed until its end
+    time passes, and your own times may not overlap each other.</p>
+  </div>
+
+  <button type="submit" class="button">Add this time</button>
+</form>
+{% endblock %}

@@ -15,4 +15,7 @@ urlpatterns = [
     path("verify-email/<str:token>/", views.verify_email, name="verify_email"),
     path("profile/", views.profile, name="profile"),
     path("players/<int:account_id>/", views.player_profile, name="player_profile"),
+    path("availability/", views.availability, name="availability"),
+    path("availability/<int:slot_id>/", views.availability_edit, name="availability_edit"),
+    path("availability/<int:slot_id>/delete/", views.availability_delete, name="availability_delete"),
 ]

@@ -6,7 +6,7 @@ decision is taken here (rule 14).
 from __future__ import annotations
 
 from django.contrib import messages
-from django.http import HttpResponseRedirect
+from django.http import Http404, HttpResponseRedirect
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -218,5 +218,131 @@ def player_profile(request, account_id: int):
     if account_id == request.viewer.account_id:
         return redirect("profile")
 
+    from rally.core.shapers.availability import NO_SLOTS_OTHER, slot_views
+    from rally.modules.availability.api import facade as availability_api
+
     view = public_profile_view(account_id, profiles.get_public_profile(account_id))
-    return render(request, "player_profile.html", {"player": view})
+    # Availability slots are a public field (PRD §12.2) and are composed here, read-only,
+    # from M3's facade (rule 14). Approximate distance joins them when search arrives.
+    slots = slot_views(availability_api.list_slots(account_id))
+    return render(
+        request,
+        "player_profile.html",
+        {"player": view, "slots": slots, "no_slots_reason": NO_SLOTS_OTHER},
+    )
+
+
+def _slot_form_values(request):
+    return {
+        "date": request.POST.get("date", ""),
+        "start": request.POST.get("start", ""),
+        "end": request.POST.get("end", ""),
+    }
+
+
+def _parse_slot(values) -> tuple[object, object, str | None]:
+    """Turn the typed local date and times into two UTC instants (AGENTS.md §5)."""
+    from rally.core.localtime import LocalTimeInvalid, parse_local
+
+    try:
+        starts_at = parse_local(values["date"], values["start"])
+        ends_at = parse_local(values["date"], values["end"])
+    except LocalTimeInvalid:
+        return None, None, "Enter a date as YYYY-MM-DD and times as HH:MM."
+    return starts_at, ends_at, None
+
+
+@require_http_methods(["GET", "POST"])
+def availability(request):
+    """The owner's availability slots (FR-04, PRD §12.1).
+
+    Individual dates and times. There is no recurring schedule in the MVP, so this page
+    offers no way to create one (AGENTS.md §7).
+    """
+    from rally.core.shapers.availability import slot_views
+    from rally.modules.availability.api import facade as availability_api
+
+    account_id = request.viewer.account_id
+
+    def page(values, error=None, status=200):
+        return render(
+            request,
+            "availability.html",
+            {
+                "slots": slot_views(availability_api.list_slots(account_id)),
+                "values": values,
+                "error": error,
+            },
+            status=status,
+        )
+
+    if request.method == "GET":
+        return page({"date": "", "start": "", "end": ""})
+
+    values = _slot_form_values(request)
+    starts_at, ends_at, error = _parse_slot(values)
+    if error:
+        return page(values, error, status=400)
+
+    result = availability_api.add_slot(account_id, starts_at, ends_at)
+    if not result.ok:
+        log_operation("availability.add", "rejected", account_id=account_id)
+        return page(values, result.error, status=400)
+
+    log_operation("availability.add", "added", account_id=account_id, slot_id=result.slot_id)
+    messages.success(request, "Your availability is saved.")
+    return redirect("availability")
+
+
+@require_http_methods(["GET", "POST"])
+def availability_edit(request, slot_id: int):
+    from rally.core.shapers.availability import slot_view
+    from rally.modules.availability.api import facade as availability_api
+
+    account_id = request.viewer.account_id
+    # Only the owner's own slot is reachable; another player's id simply is not found.
+    slot = availability_api.get_slot(account_id, slot_id)
+    if slot is None:
+        raise Http404(availability_api.NOT_FOUND)
+
+    def page(values, error=None, status=200):
+        return render(
+            request,
+            "availability_edit.html",
+            {"slot_id": slot_id, "values": values, "error": error},
+            status=status,
+        )
+
+    if request.method == "GET":
+        view = slot_view(slot)
+        return page({"date": view.date_text, "start": view.start_text, "end": view.end_text})
+
+    values = _slot_form_values(request)
+    starts_at, ends_at, error = _parse_slot(values)
+    if error:
+        return page(values, error, status=400)
+
+    result = availability_api.edit_slot(account_id, slot_id, starts_at, ends_at)
+    if not result.ok:
+        log_operation("availability.edit", "rejected", account_id=account_id, slot_id=slot_id)
+        return page(values, result.error, status=400)
+
+    log_operation("availability.edit", "saved", account_id=account_id, slot_id=slot_id)
+    messages.success(request, "Your availability is saved.")
+    return redirect("availability")
+
+
+@require_http_methods(["POST"])
+def availability_delete(request, slot_id: int):
+    """State changes on POST with CSRF, never on GET (FE-9)."""
+    from rally.modules.availability.api import facade as availability_api
+
+    account_id = request.viewer.account_id
+    result = availability_api.remove_slot(account_id, slot_id)
+    if not result.ok:
+        log_operation("availability.remove", "rejected", account_id=account_id, slot_id=slot_id)
+        raise Http404(result.error)
+
+    log_operation("availability.remove", "removed", account_id=account_id, slot_id=slot_id)
+    messages.success(request, "That playing time is removed.")
+    return redirect("availability")

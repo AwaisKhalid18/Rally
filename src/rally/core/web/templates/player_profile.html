@@ -9,8 +9,18 @@
   <dl class="player-facts">
     <dt>Playing level</dt><dd>{{ player.playing_level }}</dd>
     <dt>General area</dt><dd>{{ player.area_name }}</dd>
+    <dt>Available playing times</dt>
+    <dd>
+      {% if slots %}
+        <ul class="slots">
+          {% for slot in slots %}<li class="slot">{{ slot.summary }}</li>{% endfor %}
+        </ul>
+      {% else %}
+        {{ no_slots_reason }}
+      {% endif %}
+    </dd>
   </dl>
-  <p class="hint">Availability and approximate distance appear here once search is built.</p>
+  <p class="hint">Approximate distance appears here once search is built.</p>
 {% endif %}
 <p class="aside"><a href="{% url 'home' %}">Back</a></p>
 {% endblock %}

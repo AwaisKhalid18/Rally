@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Edit a playing time{% endblock %}
+{% block content %}
+<h1>Edit a playing time</h1>
+
+<form method="post" action="{% url 'availability_edit' slot_id %}" novalidate>
+  {% csrf_token %}
+  {% if error %}<p class="error">{{ error }}</p>{% endif %}
+
+  <div class="field">
+    <label for="id_date">Date</label>
+    <input type="date" name="date" id="id_date" value="{{ values.date }}">
+  </div>
+  <div class="field">
+    <label for="id_start">From</label>
+    <input type="time" name="start" id="id_start" value="{{ values.start }}">
+  </div>
+  <div class="field">
+    <label for="id_end">Until</label>
+    <input type="time" name="end" id="id_end" value="{{ values.end }}">
+  </div>
+
+  <button type="submit" class="button">Save this time</button>
+</form>
+
+<p class="aside"><a href="{% url 'availability' %}">Back to your playing times</a></p>
+{% endblock %}

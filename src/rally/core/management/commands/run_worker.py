@@ -8,9 +8,10 @@ of the email provider (architecture §7).
     python manage.py run_worker --once       # one pass, for tests and the demo
 
 Platform hosts the worker; the work itself belongs to the modules and is reached through
-their facades (rule 14). The expiry sweep — `M5.expirePending()` and
-`M3.removeExpiredSlots()` — is added by slices S4 and S9; expiry stays authoritative at
-commit time, so a stopped worker degrades freshness and never correctness (ADR-005).
+their facades (rule 14). The sweep calls `M3.removeExpiredSlots()`; `M5.expirePending()`
+joins it in S9. Expiry stays authoritative at commit time and the published views filter
+on the database clock, so a stopped worker degrades freshness and never correctness
+(ADR-005).
 """
 from __future__ import annotations
 
@@ -19,6 +20,7 @@ import time
 from django.core.management.base import BaseCommand
 
 from rally.core.logging import log_operation
+from rally.modules.availability.api import facade as availability
 from rally.modules.notification.api import facade as notification
 
 DEFAULT_POLL_SECONDS = 10
@@ -40,6 +42,11 @@ class Command(BaseCommand):
 
         self.stdout.write("worker started" + (" (single pass)" if once else ""))
         while True:
+            removed = availability.remove_expired_slots()
+            if removed:
+                log_operation("worker.sweep", "done", slots_removed=removed)
+                self.stdout.write(f"slots_removed={removed}")
+
             run = notification.dispatch_due(limit=batch)
             if run.claimed:
                 log_operation(
