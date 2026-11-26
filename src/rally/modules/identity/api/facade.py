@@ -156,3 +156,13 @@ def has_phone(account_id: int) -> bool:
     need the value, so the value never leaves M1.
     """
     return credentials.has_phone(account_id)
+
+
+def seed_verified_accounts(emails: list[str], now=None) -> list[int]:
+    """Create verified accounts in bulk for the CON-03 performance dataset.
+
+    Operations only. CON-03 makes a reproducible 10,000-profile seed an architectural
+    requirement, and M1 owns `account`, so M1 creates them (rule 1). The passwords are
+    unusable: nobody signs in as a seeded player.
+    """
+    return credentials.seed_verified_accounts(emails, now)

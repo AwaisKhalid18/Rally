@@ -98,3 +98,22 @@ def has_availability(account_id: int, starts_at, ends_at) -> bool:
 def remove_expired_slots() -> int:
     """Called by the worker's sweep. Returns how many slots were removed."""
     return rules.remove_expired()
+
+
+def seed_slots(rows: list[dict]) -> int:
+    """Bulk-create slots for the CON-03 performance dataset. Operations only.
+
+    Each row is {account_id, starts_at, ends_at}. M3 owns `availability_slot`, so M3
+    writes it (rule 1). The caller must keep one player's slots from overlapping — the
+    exclusion constraint will refuse the batch otherwise.
+    """
+    AvailabilitySlot.objects.bulk_create(
+        [
+            AvailabilitySlot(
+                account_id=row["account_id"], starts_at=row["starts_at"], ends_at=row["ends_at"]
+            )
+            for row in rows
+        ],
+        batch_size=1000,
+    )
+    return len(rows)

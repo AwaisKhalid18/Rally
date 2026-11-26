@@ -346,3 +346,96 @@ def availability_delete(request, slot_id: int):
     log_operation("availability.remove", "removed", account_id=account_id, slot_id=slot_id)
     messages.success(request, "That playing time is removed.")
     return redirect("availability")
+
+
+NO_RESULTS_GUIDANCE = (
+    "No players match that search. Try a different date, a wider time window, "
+    "or another area."
+)
+
+
+@require_http_methods(["GET"])
+def search(request):
+    """Find a partner (FR-02, FR-03, FR-05, FR-13; ASR-01, ASR-02, ASR-13).
+
+    A search changes nothing, so it is a GET and its criteria live in the query string
+    (FE-9). They are echoed back exactly as submitted — the system never silently alters
+    them (FR-13, FE-7).
+
+    M4 may read M2, M3 and M6 only through their published views, and the area list is
+    not one of them, so Platform resolves the chosen area's centre through M2's facade
+    and passes it in. Platform decides nothing: M4 judges the criteria (rule 14).
+    """
+    from rally.core.localtime import LocalTimeInvalid, parse_local
+    from rally.core.shapers.search import result_views
+    from rally.modules.profiles.api import facade as profiles
+    from rally.modules.search.api import facade as search_api
+
+    values = {
+        "date": request.GET.get("date", ""),
+        "start": request.GET.get("start", ""),
+        "end": request.GET.get("end", ""),
+        "area_code": request.GET.get("area_code", ""),
+    }
+    areas = profiles.list_areas()
+    submitted = any(values.values())
+
+    def page(results=None, errors=None, searched=False, status=200):
+        return render(
+            request,
+            "search.html",
+            {
+                "values": values,          # echoed back exactly as submitted (FR-13)
+                "areas": areas,
+                "results": results or [],
+                "errors": errors or {},
+                "searched": searched,
+                "no_results_guidance": NO_RESULTS_GUIDANCE,
+            },
+            status=status,
+        )
+
+    if not submitted:
+        return page()
+
+    errors: dict[str, str] = {}
+    window_start = window_end = None
+    if not values["date"]:
+        errors["date"] = search_api.DATE_REQUIRED
+    else:
+        for field, message in (("start", search_api.START_REQUIRED), ("end", search_api.END_REQUIRED)):
+            if not values[field]:
+                errors[field] = message
+        if "start" not in errors and "end" not in errors:
+            try:
+                window_start = parse_local(values["date"], values["start"])
+                window_end = parse_local(values["date"], values["end"])
+            except LocalTimeInvalid:
+                errors["date"] = "Enter a date as YYYY-MM-DD and times as HH:MM."
+
+    centroid = None
+    if values["area_code"]:
+        centroid = profiles.area_centroid(values["area_code"])
+
+    if errors:
+        # Nothing is sent to M4 until the shape is right; the criteria stay as typed.
+        return page(errors=errors, searched=True, status=400)
+
+    outcome = search_api.search(
+        searcher_id=request.viewer.account_id,
+        window_start=window_start,
+        window_end=window_end,
+        area_code=values["area_code"],
+        area_centroid=centroid,
+    )
+    if not outcome.ok:
+        log_operation("search.run", "rejected", account_id=request.viewer.account_id)
+        return page(errors=outcome.errors, searched=True, status=400)
+
+    log_operation(
+        "search.run",
+        "done",
+        account_id=request.viewer.account_id,
+        results=len(outcome.results),
+    )
+    return page(results=result_views(outcome.results), searched=True)

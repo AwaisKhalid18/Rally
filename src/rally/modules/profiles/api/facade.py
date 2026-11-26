@@ -149,3 +149,43 @@ def replace_areas(rows: list[dict]) -> int:
             },
         )
     return len(rows)
+
+
+def area_centroid(area_code: str) -> tuple[float, float] | None:
+    """The centre of one general area, or None when the code is not in the fixed list.
+
+    M4 may read M2 only through its published views and the area list is not one of
+    them, so Platform resolves the searcher's chosen area here and passes the point to
+    M4 as part of the criteria (architecture §6.2). It is an area centre, never a
+    player's position (rule 7).
+    """
+    row = Area.objects.filter(code=area_code).values("centroid_lat", "centroid_lon").first()
+    if row is None:
+        return None
+    return float(row["centroid_lat"]), float(row["centroid_lon"])
+
+
+def seed_profiles(rows: list[dict]) -> int:
+    """Bulk-create profiles for the CON-03 performance dataset. Operations only.
+
+    Each row is {account_id, display_name, playing_level, area_code}. M2 owns `profile`,
+    so M2 writes it (rule 1).
+    """
+    areas = {area.code: area for area in Area.objects.all()}
+    Profile.objects.bulk_create(
+        [
+            Profile(
+                account_id=row["account_id"],
+                display_name=row["display_name"],
+                playing_level=row["playing_level"],
+                area=areas[row["area_code"]],
+            )
+            for row in rows
+        ],
+        batch_size=1000,
+    )
+    return len(rows)
+
+
+def area_codes() -> list[str]:
+    return [area.code for area in Area.objects.all()]

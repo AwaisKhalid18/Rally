@@ -201,3 +201,21 @@ def has_phone(account_id: int) -> bool:
         .exclude(phone="")
         .exists()
     )
+
+
+def seed_verified_accounts(emails: list[str], now=None) -> list[int]:
+    """Bulk-create verified accounts for the performance dataset (CON-03)."""
+    stamp = now or clock.now()
+    accounts = [
+        Account(
+            email=normalise_email(email),
+            password="!unusable",
+            is_verified=True,
+            verified_at=stamp,
+            is_active=True,
+            created_at=stamp,
+        )
+        for email in emails
+    ]
+    Account.objects.bulk_create(accounts, batch_size=1000)
+    return [account.pk for account in accounts]

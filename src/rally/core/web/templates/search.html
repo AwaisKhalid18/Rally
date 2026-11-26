@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Find a player{% endblock %}
+{% block content %}
+<h1>Find a player</h1>
+<p class="lead">Say when and where you want to play. Rally shows players whose available
+times overlap yours, nearest first.</p>
+
+<form method="get" action="{% url 'search' %}" novalidate>
+  <div class="field">
+    <label for="id_date">Date</label>
+    <input type="date" name="date" id="id_date" value="{{ values.date }}">
+    {% if errors.date %}<p class="error">{{ errors.date }}</p>{% endif %}
+  </div>
+  <div class="field">
+    <label for="id_start">From</label>
+    <input type="time" name="start" id="id_start" value="{{ values.start }}">
+    {% if errors.start %}<p class="error">{{ errors.start }}</p>{% endif %}
+  </div>
+  <div class="field">
+    <label for="id_end">Until</label>
+    <input type="time" name="end" id="id_end" value="{{ values.end }}">
+    {% if errors.end %}<p class="error">{{ errors.end }}</p>{% endif %}
+  </div>
+  <div class="field">
+    <label for="id_area_code">Area</label>
+    <select name="area_code" id="id_area_code">
+      <option value="">Choose an area</option>
+      {% for area in areas %}
+        <option value="{{ area.code }}"{% if area.code == values.area_code %} selected{% endif %}>{{ area.name }}</option>
+      {% endfor %}
+    </select>
+    <p class="hint">Distance is measured from the centre of this area to the centre of
+    the other player's area, and is always approximate.</p>
+    {% if errors.area_code %}<p class="error">{{ errors.area_code }}</p>{% endif %}
+  </div>
+
+  <button type="submit" class="button">Search</button>
+</form>
+
+{% if searched and not errors %}
+  <h2>Results</h2>
+  {% if results %}
+    <ul class="results">
+      {% for player in results %}
+        <li class="result-card">
+          <h3><a href="{% url 'player_profile' player.account_id %}">{{ player.display_name }}</a></h3>
+          <p class="result-facts">
+            <span class="level">{{ player.playing_level }}</span> ·
+            <span class="area">{{ player.area_name }}</span> ·
+            <span class="distance">
+              {% if player.distance_text %}{{ player.distance_text }}{% else %}{{ player.distance_reason }}{% endif %}
+            </span>
+          </p>
+          <p class="result-times">Available:
+            {% for slot in player.slots %}{{ slot.summary }}{% if not forloop.last %}; {% endif %}{% endfor %}
+          </p>
+          <p class="result-actions">
+            <a class="button" href="{% url 'player_profile' player.account_id %}">Invite</a>
+          </p>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="notice">{{ no_results_guidance }}</p>
+  {% endif %}
+{% endif %}
+{% endblock %}

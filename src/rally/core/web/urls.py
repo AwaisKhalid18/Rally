@@ -18,4 +18,5 @@ urlpatterns = [
     path("availability/", views.availability, name="availability"),
     path("availability/<int:slot_id>/", views.availability_edit, name="availability_edit"),
     path("availability/<int:slot_id>/delete/", views.availability_delete, name="availability_delete"),
+    path("search/", views.search, name="search"),
 ]
