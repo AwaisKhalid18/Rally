@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Rally{% endblock %}
+{% block content %}
+<h1>Welcome back</h1>
+
+{% if viewer.verification_notice %}
+  <p class="notice">{{ viewer.verification_notice }}</p>
+{% endif %}
+
+<p class="lead">
+  Searching for a partner, your profile and your availability arrive in the next slices.
+</p>
+{% endblock %}
