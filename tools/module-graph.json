@@ -15,7 +15,7 @@
     {"id": "search",       "name": "M4 Search and Matching","package": "rally/modules/search",             "owns": [],                                                   "built": false},
     {"id": "invitations",  "name": "M5 Invitation and Games","package": "rally/modules/invitations",       "owns": ["invitation", "confirmed_game", "game_participant"], "built": false},
     {"id": "safety",       "name": "M6 Safety",             "package": "rally/modules/safety",             "owns": ["block", "report"],                                  "built": false},
-    {"id": "notification", "name": "M7 Notification",       "package": "rally/modules/notification",       "owns": ["outbox", "notification"],                           "built": false},
+    {"id": "notification", "name": "M7 Notification",       "package": "rally/modules/notification",       "owns": ["outbox", "notification"],                           "built": true},
     {"id": "collections",  "name": "M8 Player Collections", "package": "rally/modules/player_collections", "owns": ["favorite", "saved_search"],                         "built": false}
   ],
   "edges": [

@@ -1,5 +1,9 @@
-# import-linter contracts (AGENTS.md section 1, rules 1, 2, 9, 12; ADR-007).
-# A contract is added by the slice that first creates the module it governs.
+# import-linter contracts (AGENTS.md section 1, rules 1, 2, 3, 9, 12; ADR-007).
+#
+# A contract names only packages that exist: import-linter aborts the whole run on an
+# unknown module, so the slice that creates a module adds it to the lists below.
+# Built so far: rally.core (P), rally.modules.identity (M1), rally.modules.notification (M7).
+#
 # Run with:  lint-imports
 
 [importlinter]
@@ -18,12 +22,15 @@ source_modules =
 forbidden_modules =
     rally.modules.identity.internal
     rally.modules.identity.models
+    rally.modules.notification.internal
+    rally.modules.notification.models
 
 [importlinter:contract:modules-do-not-import-the-web-layer]
 name = A capability module never imports Platform's web layer
 type = forbidden
 source_modules =
     rally.modules.identity
+    rally.modules.notification
 forbidden_modules =
     rally.core.web
 
@@ -36,3 +43,26 @@ forbidden_modules =
     rally.settings
     rally.urls
     rally.wsgi
+
+[importlinter:contract:nothing-imports-notification]
+name = No business module imports M7 (rule 3); Platform's OutboxAppender port is the only way in
+type = forbidden
+# Direct imports only, and that is the whole rule: a business module writes down
+# `rally.core.ports.outbox` and never `rally.modules.notification`. The indirect chain
+# M1 -> port -> wiring registry -> M7 is the port doing its job (rule 15); forbidding it
+# would forbid having a port at all.
+allow_indirect_imports = true
+source_modules =
+    rally.modules.identity
+forbidden_modules =
+    rally.modules.notification
+
+[importlinter:contract:notification-reaches-m1-through-its-facade-only]
+name = M7 reads the delivery address through M1's facade, never its internals (rule 2)
+type = forbidden
+allow_indirect_imports = true
+source_modules =
+    rally.modules.notification
+forbidden_modules =
+    rally.modules.identity.internal
+    rally.modules.identity.models
