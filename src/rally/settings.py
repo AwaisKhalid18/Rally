@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     # Capability modules — one line per module, added by the slice that first needs it.
     "rally.modules.identity",  # M1
     "rally.modules.profiles",  # M2
+    "rally.modules.availability",  # M3
     "rally.modules.notification",  # M7
 ]
 

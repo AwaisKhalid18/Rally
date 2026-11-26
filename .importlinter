@@ -84,3 +84,14 @@ forbidden_modules =
     rally.modules.identity
     rally.modules.notification
     rally.core.web
+
+[importlinter:contract:availability-depends-on-nothing]
+name = M3 Availability depends on no other capability module (AGENTS.md section 3)
+type = forbidden
+source_modules =
+    rally.modules.availability
+forbidden_modules =
+    rally.modules.identity
+    rally.modules.profiles
+    rally.modules.notification
+    rally.core.web
