@@ -66,3 +66,21 @@ source_modules =
 forbidden_modules =
     rally.modules.identity.internal
     rally.modules.identity.models
+
+[importlinter:contract:profile-reads-m1-only-through-its-published-view]
+name = M2 Profile does not import M1 at all; it reads v_verified_account (AGENTS.md section 3)
+type = forbidden
+# The allowlist grants `profile -> identity` as a read of one published view, not as a
+# call. M2's production packages are therefore named one by one: none of them may import
+# M1, and `internal/verification.py` queries the view instead. `rally.modules.profiles.tests`
+# is deliberately outside the contract - a test needs M1's facade to create the account a
+# profile belongs to, and that is fixture setup, not a production dependency.
+source_modules =
+    rally.modules.profiles.api
+    rally.modules.profiles.internal
+    rally.modules.profiles.views
+    rally.modules.profiles.models
+forbidden_modules =
+    rally.modules.identity
+    rally.modules.notification
+    rally.core.web

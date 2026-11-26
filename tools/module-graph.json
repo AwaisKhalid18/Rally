@@ -10,7 +10,7 @@
   ],
   "modules": [
     {"id": "identity",     "name": "M1 Identity",           "package": "rally/modules/identity",           "owns": ["account", "session"],                               "built": true},
-    {"id": "profile",      "name": "M2 Profile",            "package": "rally/modules/profiles",           "owns": ["profile", "area"],                                  "built": false},
+    {"id": "profile",      "name": "M2 Profile",            "package": "rally/modules/profiles",           "owns": ["profile", "area"],                                  "built": true},
     {"id": "availability", "name": "M3 Availability",       "package": "rally/modules/availability",       "owns": ["availability_slot"],                                "built": false},
     {"id": "search",       "name": "M4 Search and Matching","package": "rally/modules/search",             "owns": [],                                                   "built": false},
     {"id": "invitations",  "name": "M5 Invitation and Games","package": "rally/modules/invitations",       "owns": ["invitation", "confirmed_game", "game_participant"], "built": false},
