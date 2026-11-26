@@ -95,3 +95,46 @@ forbidden_modules =
     rally.modules.profiles
     rally.modules.notification
     rally.core.web
+
+[importlinter:contract:safety-depends-on-nothing]
+name = M6 Safety depends on no other capability module (AGENTS.md section 3)
+type = forbidden
+source_modules =
+    rally.modules.safety.api
+    rally.modules.safety.internal
+    rally.modules.safety.views
+    rally.modules.safety.models
+forbidden_modules =
+    rally.modules.identity
+    rally.modules.profiles
+    rally.modules.availability
+    rally.modules.search
+    rally.modules.notification
+    rally.core.web
+
+[importlinter:contract:search-reads-views-and-is-called-by-nobody]
+name = M4 imports no other module and no module imports M4 (rules 1, 9)
+type = forbidden
+source_modules =
+    rally.modules.search.api
+    rally.modules.search.internal
+    rally.modules.search.views
+forbidden_modules =
+    rally.modules.identity
+    rally.modules.profiles
+    rally.modules.availability
+    rally.modules.safety
+    rally.modules.notification
+    rally.core.web
+
+[importlinter:contract:nothing-imports-search]
+name = Only Platform calls M4; no capability module imports it (rule 9)
+type = forbidden
+source_modules =
+    rally.modules.identity
+    rally.modules.profiles
+    rally.modules.availability
+    rally.modules.safety
+    rally.modules.notification
+forbidden_modules =
+    rally.modules.search

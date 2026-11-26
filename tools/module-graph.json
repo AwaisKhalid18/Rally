@@ -12,9 +12,9 @@
     {"id": "identity",     "name": "M1 Identity",           "package": "rally/modules/identity",           "owns": ["account", "session"],                               "built": true},
     {"id": "profile",      "name": "M2 Profile",            "package": "rally/modules/profiles",           "owns": ["profile", "area"],                                  "built": true},
     {"id": "availability", "name": "M3 Availability",       "package": "rally/modules/availability",       "owns": ["availability_slot"],                                "built": true},
-    {"id": "search",       "name": "M4 Search and Matching","package": "rally/modules/search",             "owns": [],                                                   "built": false},
+    {"id": "search",       "name": "M4 Search and Matching","package": "rally/modules/search",             "owns": [],                                                   "built": true},
     {"id": "invitations",  "name": "M5 Invitation and Games","package": "rally/modules/invitations",       "owns": ["invitation", "confirmed_game", "game_participant"], "built": false},
-    {"id": "safety",       "name": "M6 Safety",             "package": "rally/modules/safety",             "owns": ["block", "report"],                                  "built": false},
+    {"id": "safety",       "name": "M6 Safety",             "package": "rally/modules/safety",             "owns": ["block", "report"],                                  "built": true},
     {"id": "notification", "name": "M7 Notification",       "package": "rally/modules/notification",       "owns": ["outbox", "notification"],                           "built": true},
     {"id": "collections",  "name": "M8 Player Collections", "package": "rally/modules/player_collections", "owns": ["favorite", "saved_search"],                         "built": false}
   ],
