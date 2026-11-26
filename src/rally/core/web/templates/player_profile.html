@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Player{% endblock %}
+{% block content %}
+{% if player.reason %}
+  <h1>Player</h1>
+  <p class="notice">{{ player.reason }}</p>
+{% else %}
+  <h1>{{ player.display_name }}</h1>
+  <dl class="player-facts">
+    <dt>Playing level</dt><dd>{{ player.playing_level }}</dd>
+    <dt>General area</dt><dd>{{ player.area_name }}</dd>
+  </dl>
+  <p class="hint">Availability and approximate distance appear here once search is built.</p>
+{% endif %}
+<p class="aside"><a href="{% url 'home' %}">Back</a></p>
+{% endblock %}

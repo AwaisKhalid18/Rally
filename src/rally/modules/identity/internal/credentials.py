@@ -177,3 +177,27 @@ def authenticate(raw_email: str, raw_password: str) -> int | None:
     if not account.check_password(password):
         return None
     return account.pk
+
+
+# --- Phone (PRIVATE, optional) ----------------------------------------------
+# PRD §12.2: phone is an optional private profile field. It lives here, with the other
+# contact data, and never reaches M2 (rule 6).
+
+PHONE_MAX_LENGTH = 32
+PHONE_TOO_LONG = f"A phone number may be at most {PHONE_MAX_LENGTH} characters."
+
+
+def set_phone(account_id: int, phone: str) -> dict[str, str]:
+    value = (phone or "").strip()
+    if len(value) > PHONE_MAX_LENGTH:
+        return {"phone": PHONE_TOO_LONG}
+    Account.objects.filter(pk=account_id, is_active=True).update(phone=value)
+    return {}
+
+
+def has_phone(account_id: int) -> bool:
+    return (
+        Account.objects.filter(pk=account_id, is_active=True)
+        .exclude(phone="")
+        .exists()
+    )

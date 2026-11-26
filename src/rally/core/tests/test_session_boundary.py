@@ -9,6 +9,15 @@ from django.urls import URLPattern, URLResolver, get_resolver, reverse
 from rally.core.pipeline.middleware import PUBLIC_URL_NAMES
 
 
+# Routes that take a parameter need a sample value before they can be reversed. A new
+# route with parameters must be added here, which is deliberate: it forces whoever adds
+# it to say how it is reached, and keeps it inside the session check.
+SAMPLE_ARGS = {
+    "verify_email": {"token": "no-such-token"},
+    "player_profile": {"account_id": 999999},
+}
+
+
 def named_routes() -> list[str]:
     """Every named route in the project, flattened."""
     names: list[str] = []
@@ -36,7 +45,7 @@ class SessionBoundaryTests(TestCase):
             if name in PUBLIC_URL_NAMES:
                 continue
             with self.subTest(route=name):
-                response = self.client.get(reverse(name))
+                response = self.client.get(reverse(name, kwargs=SAMPLE_ARGS.get(name, {})))
                 self.assertEqual(
                     response.status_code, 302, "{} answered an anonymous request".format(name)
                 )
@@ -55,7 +64,7 @@ class SessionBoundaryTests(TestCase):
             "sign_in": sign_in,
             # Any token answers; an unknown one answers 404, which is still an answer and
             # not a redirect to sign-in.
-            "verify_email": reverse("verify_email", kwargs={"token": "no-such-token"}),
+            "verify_email": reverse("verify_email", kwargs=SAMPLE_ARGS["verify_email"]),
         }
         self.assertEqual(set(urls), set(PUBLIC_URL_NAMES))
 

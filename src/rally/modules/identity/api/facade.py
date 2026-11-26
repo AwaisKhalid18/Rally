@@ -133,3 +133,26 @@ def get_delivery_address(account_id: int) -> str | None:
         .values_list("email", flat=True)
         .first()
     )
+
+
+PHONE_MAX_LENGTH = credentials.PHONE_MAX_LENGTH
+PHONE_TOO_LONG = credentials.PHONE_TOO_LONG
+
+
+def set_phone(account_id: int, phone: str) -> dict[str, str]:
+    """Store or clear the owner's own phone number. Returns field errors, empty on success.
+
+    The caller may only pass the account it is acting as: M1 authorises its own records
+    (ADR-003). Pass an empty string to remove the number.
+    """
+    return credentials.set_phone(account_id, phone)
+
+
+def has_phone(account_id: int) -> bool:
+    """Whether a number is on file — **not** the number itself.
+
+    Rule 6 keeps email and phone out of every view and payload. The owner's screen needs
+    to know that something is saved so it can offer to replace or remove it; it does not
+    need the value, so the value never leaves M1.
+    """
+    return credentials.has_phone(account_id)
