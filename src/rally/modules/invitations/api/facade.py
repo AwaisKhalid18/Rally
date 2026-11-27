@@ -201,3 +201,26 @@ def get_game_for_invitation(invitation_id: int, account_id: int) -> GameRecord |
         venue=game.venue,
         is_cancelled=game.is_cancelled,
     )
+
+
+# --- Cancelling and expiry (S9) ---------------------------------------------
+
+NOT_THE_SENDER = responding.NOT_THE_SENDER
+
+
+def cancel_invitation(invitation_id: int, account_id: int) -> ResponseResult:
+    """The sender withdraws a pending invitation (FR-11, PRD §12.3).
+
+    Only the sender, only while it is pending, and the recipient is notified.
+    """
+    result = responding.cancel(invitation_id, account_id)
+    return ResponseResult(invitation_id=result.invitation_id, error=result.error)
+
+
+def expire_pending() -> int:
+    """Refresh the stored status of invitations past their deadline. Worker only.
+
+    Display, not correctness: expiry is already authoritative at every transition
+    (ASR-09, ADR-005). Returns how many rows were refreshed. Notifies nobody.
+    """
+    return responding.expire_pending()

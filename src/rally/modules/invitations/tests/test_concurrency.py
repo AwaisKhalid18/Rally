@@ -214,3 +214,60 @@ class TwoOverlappingInvitationsTests(RaceCase):
 
         self.assertEqual(len([r for r in results if r.ok]), 2, [r.error for r in results])
         self.assertEqual(ConfirmedGame.objects.count(), 2)
+
+
+class CancelRacesAcceptTests(RaceCase):
+    """AC4 - the sender withdraws at the moment the recipient answers."""
+
+    def test_exactly_one_of_them_wins(self):
+        invitation_id = self.send(self.sender, 18, 20)
+
+        results = run_together(
+            lambda: invitations.accept(invitation_id, self.recipient),
+            lambda: invitations.cancel_invitation(invitation_id, self.sender),
+        )
+
+        for result in results:
+            self.assertNotIsInstance(result, Exception, f"a thread raised: {result!r}")
+        self.assertEqual(len([r for r in results if r.ok]), 1)
+        self.assertEqual(
+            [r.error for r in results if not r.ok], [invitations.NO_LONGER_PENDING]
+        )
+
+    def test_a_cancelled_invitation_never_leaves_a_game_behind(self):
+        invitation_id = self.send(self.sender, 18, 20)
+
+        run_together(
+            lambda: invitations.accept(invitation_id, self.recipient),
+            lambda: invitations.cancel_invitation(invitation_id, self.sender),
+        )
+
+        status = Invitation.objects.get(pk=invitation_id).status
+        expected_games = 1 if status == InvitationStatus.ACCEPTED else 0
+        self.assertEqual(ConfirmedGame.objects.count(), expected_games)
+        self.assertEqual(GameParticipant.objects.count(), expected_games * 2)
+
+
+class ExpiryRacesAcceptTests(RaceCase):
+    """The sweep and an acceptance meeting on the same row (ASR-09)."""
+
+    def test_the_two_never_disagree(self):
+        invitation_id = self.send(self.sender, 18, 20)
+        Invitation.objects.filter(pk=invitation_id).update(
+            expires_at=clock.now() - _dt.timedelta(seconds=1)
+        )
+
+        results = run_together(
+            lambda: invitations.accept(invitation_id, self.recipient),
+            lambda: invitations.expire_pending(),
+        )
+
+        accept_result = results[0]
+        self.assertNotIsInstance(accept_result, Exception, f"a thread raised: {accept_result!r}")
+        # Whatever order they land in, the accept must lose: it is past the deadline.
+        self.assertFalse(accept_result.ok)
+        self.assertEqual(accept_result.error, invitations.HAS_EXPIRED)
+        self.assertEqual(ConfirmedGame.objects.count(), 0)
+        self.assertEqual(
+            Invitation.objects.get(pk=invitation_id).status, InvitationStatus.EXPIRED
+        )

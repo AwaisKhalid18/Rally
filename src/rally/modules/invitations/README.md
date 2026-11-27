@@ -8,7 +8,7 @@ no-double-booking invariant. The system's only multi-actor stateful workflow.
 | **Owns** | `invitation`, `confirmed_game`, `game_participant` |
 | **Depends on** | M3 Availability, M6 Safety, M2 Profile — **not M1** |
 | **Serves** | FR-08, FR-09, FR-10, FR-11, FR-15; ASR-07 … ASR-11 |
-| **Slice** | S7 send and list · S8 accept, decline and the confirmed game. Cancel and expiry S9, the games screen S11, `cancelPendingBetween` S12. |
+| **Slice** | S7 send and list · S8 accept, decline, confirmed game · S9 cancel and expiry. The games screen is S11, `cancelPendingBetween` S12. |
 
 ## Published interface — today
 
@@ -18,10 +18,44 @@ no-double-booking invariant. The system's only multi-actor stateful workflow.
 | `list_for_player(account_id)` | `(sent, received)`, newest first. |
 | `accept(invitation_id, account_id)` | One transaction. Returns the game id, or a **domain reason** — never a database error. |
 | `decline(invitation_id, account_id)` | No reason required (PRD §12.3). |
+| `cancel_invitation(invitation_id, account_id)` | The **sender** withdraws a pending invitation; the recipient is notified. |
+| `expire_pending()` | Worker only. Refreshes stored status; notifies nobody. |
 | `get_game_for_invitation(invitation_id, account_id)` | The game an accepted invitation created, for a participant only. |
 | `get_for_participant(invitation_id, account_id)` | `None` for a non-participant — the caller turns that into a **not-found**, never a "forbidden", which would itself confirm the invitation exists (ASR-05). |
 
-Still to come: `cancelInvitation`, `cancelGame`, `expirePending`, `cancelPendingBetween`.
+Still to come: `cancelGame` (S11) and `cancelPendingBetween` (S12).
+
+## The state machine (PRD §12.3)
+
+```
+            accept()  ──▶ Accepted   (+ a separate confirmed_game)
+           decline()  ──▶ Declined
+Pending ─┤ cancel()   ──▶ Cancelled  (sender only)
+           deadline   ──▶ Expired
+```
+
+All four are terminal. Nothing leaves a terminal status, and nothing outside M5 may
+change one (ASR-07). Every transition re-reads the row under `FOR UPDATE` and judges it
+afresh, so **the first committed action wins** and the loser is told why.
+
+## Expiry: authoritative at commit, swept for display
+
+`expires_at = min(created + 24h, proposed start)`, stamped from the server clock
+(PRD §12.3, ASR-09). The deadline is **inclusive**: at `expires_at` exactly the
+invitation has expired; one second earlier it can still be answered.
+
+Every transition — accept, decline and cancel alike — re-checks it. So an expired
+invitation cannot be acted on **whether or not the sweep has ever run**.
+`expire_pending()` only refreshes the stored status so the listing reads correctly. A
+stalled worker therefore makes the display stale and nothing worse (ADR-005).
+
+Expiry **notifies nobody**: the PRD sends no reminders and no expiry notice.
+
+The reason given is stable. An invitation past its deadline says *"this invitation has
+expired"* whether or not the sweep has already refreshed its stored status — the expiry
+check is named before the generic "no longer pending". The sweep-vs-accept race found
+this: before the fix the wording depended on who won, and both answers refused the
+acceptance correctly but only one of them said why.
 
 ## Accepting: the transaction (ASR-08, ADR-004)
 

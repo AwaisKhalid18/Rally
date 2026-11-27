@@ -29,6 +29,7 @@ from rally.core import clock
 from rally.core.logging import log_operation
 from rally.core.ports.outbox import (
     EVENT_INVITATION_ACCEPTED,
+    EVENT_INVITATION_CANCELLED,
     EVENT_INVITATION_DECLINED,
     RECIPIENT_KEY,
     append_outbox,
@@ -79,6 +80,13 @@ def _locked_for_response(invitation_id: int, account_id: int):
     if account_id != invitation.recipient_account_id:
         # The sender gets the same answer as a stranger: only the recipient responds.
         return None, NOT_THE_RECIPIENT
+    # Expiry is named before the generic "no longer pending", so the player is told the
+    # same thing whether or not the sweep happens to have run yet. Without this the
+    # message depended on who won the race: the sweep first gave "no longer pending",
+    # the acceptance first gave "has expired". Both refused correctly, but only one of
+    # them says why.
+    if invitation.status == InvitationStatus.EXPIRED:
+        return None, HAS_EXPIRED
     if invitation.status != InvitationStatus.PENDING:
         return None, NO_LONGER_PENDING
     # Expiry is authoritative here, at commit time - not whenever the sweep last ran
@@ -176,3 +184,63 @@ def decline(invitation_id: int, account_id: int) -> ResponseResult:
         )
 
     return ResponseResult(invitation_id=invitation_id)
+
+
+# --- The sender's withdrawal, and the system's own transition (S9) -----------
+
+NOT_THE_SENDER = "Only the player who sent an invitation can cancel it."
+
+
+def _locked_for_cancel(invitation_id: int, account_id: int):
+    """Re-read under a row lock and judge afresh, as every transition does (ASR-07)."""
+    invitation = Invitation.objects.select_for_update().filter(pk=invitation_id).first()
+    if invitation is None:
+        return None, NOT_FOUND
+    if account_id != invitation.sender_account_id:
+        return None, NOT_THE_SENDER
+    # Same ordering as `_locked_for_response`: an expired invitation says so whether or
+    # not the sweep has refreshed its stored status yet.
+    if invitation.status == InvitationStatus.EXPIRED:
+        return None, HAS_EXPIRED
+    if invitation.status != InvitationStatus.PENDING:
+        return None, NO_LONGER_PENDING
+    if invitation.expires_at <= clock.now():
+        # Already dead by the clock, whatever the stored status still says.
+        return None, HAS_EXPIRED
+    return invitation, None
+
+
+def cancel(invitation_id: int, account_id: int) -> ResponseResult:
+    """The sender withdraws a pending invitation (FR-11, PRD §12.3).
+
+    Cancelled is terminal, like the other three. The recipient is told, because the PRD
+    resolves that they are notified when a sender withdraws.
+    """
+    with transaction.atomic():
+        invitation, error = _locked_for_cancel(invitation_id, account_id)
+        if error:
+            return ResponseResult(error=error)
+
+        Invitation.objects.filter(pk=invitation_id).update(status=InvitationStatus.CANCELLED)
+        append_outbox(
+            EVENT_INVITATION_CANCELLED,
+            {RECIPIENT_KEY: invitation.recipient_account_id, "invitation_id": invitation_id},
+        )
+
+    return ResponseResult(invitation_id=invitation_id)
+
+
+def expire_pending() -> int:
+    """Refresh the stored status of invitations whose deadline has passed (ASR-09).
+
+    **This is display only.** Expiry is already authoritative at commit time: every
+    transition re-reads `expires_at` against the server clock, so an expired invitation
+    cannot be accepted, declined or cancelled whether or not this has ever run. A
+    stalled worker therefore makes the listing stale and nothing worse (ADR-005).
+
+    It notifies nobody. The PRD sends no reminders and no expiry notice (PRD §12.3), so
+    no outbox record is written here.
+    """
+    return Invitation.objects.filter(
+        status=InvitationStatus.PENDING, expires_at__lte=clock.now()
+    ).update(status=InvitationStatus.EXPIRED)

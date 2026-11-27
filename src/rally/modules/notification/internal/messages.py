@@ -14,6 +14,7 @@ from django.urls import reverse
 from rally.core.ports.outbox import (
     EVENT_ACCOUNT_VERIFICATION_REQUESTED,
     EVENT_INVITATION_ACCEPTED,
+    EVENT_INVITATION_CANCELLED,
     EVENT_INVITATION_DECLINED,
     EVENT_INVITATION_SENT,
 )
@@ -123,11 +124,36 @@ def _invitation_declined_message(recipient_account_id: int) -> Message:
     )
 
 
+def _invitation_cancelled_message(recipient_account_id: int) -> Message:
+    """Told to the RECIPIENT: the sender withdrew the invitation (PRD 12.3).
+
+    Expiry notifies nobody, so there is no composer for it: the PRD sends no
+    reminders and no expiry notice.
+    """
+    address = identity.get_delivery_address(recipient_account_id)
+    if address is None:
+        raise MessageCannotBeComposed("no deliverable account")
+
+    link = _site_url() + reverse("invitations")
+    body = (
+        "A Rally invitation you received has been cancelled by the player who sent it."
+        "\n\nOpen your invitations to see which one:\n\n"
+        f"{link}\n"
+    )
+    return Message(
+        to_address=address,
+        subject="A Rally invitation was cancelled",
+        body=body,
+        notification_type=EVENT_INVITATION_CANCELLED,
+    )
+
+
 _COMPOSERS = {
     EVENT_ACCOUNT_VERIFICATION_REQUESTED: _verification_message,
     EVENT_INVITATION_SENT: _invitation_sent_message,
     EVENT_INVITATION_ACCEPTED: _invitation_accepted_message,
     EVENT_INVITATION_DECLINED: _invitation_declined_message,
+    EVENT_INVITATION_CANCELLED: _invitation_cancelled_message,
 }
 
 

@@ -48,3 +48,8 @@ EVENT_INVITATION_SENT = "invitation.sent"
 # when a recipient accepts or declines.
 EVENT_INVITATION_ACCEPTED = "invitation.accepted"
 EVENT_INVITATION_DECLINED = "invitation.declined"
+
+# Added by S9. Told to the **recipient**: PRD §12.3 resolves that they are notified when
+# a sender withdraws a pending invitation. Expiry notifies nobody — the PRD sends no
+# reminders and no expiry notice.
+EVENT_INVITATION_CANCELLED = "invitation.cancelled"
