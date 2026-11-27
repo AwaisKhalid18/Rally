@@ -605,3 +605,24 @@ def invitation_decline(request, invitation_id: int):
     log_operation("invitation.decline", "declined", account_id=viewer_id, invitation_id=invitation_id)
     messages.success(request, "Declined.")
     return redirect("invitation_detail", invitation_id=invitation_id)
+
+
+@require_http_methods(["POST"])
+def invitation_cancel(request, invitation_id: int):
+    """The sender withdraws a pending invitation (FR-11, PRD §12.3).
+
+    POST with CSRF; a GET changes nothing (FE-9). Cancelling an *invitation* is not the
+    same action as cancelling a *confirmed game*, which arrives in S11.
+    """
+    from rally.modules.invitations.api import facade as invitations
+
+    viewer_id = request.viewer.account_id
+    result = invitations.cancel_invitation(invitation_id, viewer_id)
+    if not result.ok:
+        log_operation("invitation.cancel", "rejected", account_id=viewer_id, invitation_id=invitation_id)
+        messages.error(request, result.error)
+        return redirect("invitation_detail", invitation_id=invitation_id)
+
+    log_operation("invitation.cancel", "cancelled", account_id=viewer_id, invitation_id=invitation_id)
+    messages.success(request, "Invitation cancelled.")
+    return redirect("invitation_detail", invitation_id=invitation_id)

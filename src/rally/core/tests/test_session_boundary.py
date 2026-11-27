@@ -21,6 +21,7 @@ SAMPLE_ARGS = {
     "invitation_detail": {"invitation_id": 999999},
     "invitation_accept": {"invitation_id": 999999},
     "invitation_decline": {"invitation_id": 999999},
+    "invitation_cancel": {"invitation_id": 999999},
 }
 
 

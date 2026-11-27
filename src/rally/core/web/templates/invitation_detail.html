@@ -37,7 +37,12 @@
   <p class="hint">Accepting confirms the game straight away. Declining needs no reason,
   and neither answer can be changed afterwards.</p>
 {% elif invitation.is_pending %}
-  <p class="hint">Waiting for {{ invitation.other_party_name }} to answer.</p>
+  <p class="hint">Waiting for {{ invitation.other_party_name }} to answer. It expires on
+  {{ invitation.expires_text }} if they do not.</p>
+  <form method="post" action="{% url 'invitation_cancel' invitation.invitation_id %}" class="inline">
+    {% csrf_token %}
+    <button type="submit" class="link-button">Cancel this invitation</button>
+  </form>
 {% endif %}
 
 <p class="aside"><a href="{% url 'invitations' %}">Back to your invitations</a></p>
