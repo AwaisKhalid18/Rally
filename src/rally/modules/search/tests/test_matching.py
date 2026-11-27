@@ -26,8 +26,10 @@ F7 = (33.7211, 73.0551)
 
 
 def at(day_offset: int, hour: int) -> _dt.datetime:
-    base = clock.now().replace(minute=0, second=0, microsecond=0)
-    return base + _dt.timedelta(days=day_offset, hours=hour - base.hour)
+    # Anchored on midnight, not on "now": re-reading the clock per call made the
+    # fixture and the search window disagree whenever the hour rolled over mid-test.
+    midnight = clock.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    return midnight + _dt.timedelta(days=day_offset, hours=hour)
 
 
 class MatchingCase(TestCase):
@@ -46,13 +48,16 @@ class MatchingCase(TestCase):
             availability.add_slot(account_id, at(day, start), at(day, end))
         return account_id
 
-    def run_search(self, day=1, start=18, end=20, area="isb-f7", searcher=None):
+    def run_search(self, day=1, start=18, end=20, area="isb-f7", searcher=None, **filters):
+        # S6 gave the search a 10 km default, so a case that wants a distant player has
+        # to say so; 50 km is the widest the PRD offers.
         return search.search(
             searcher_id=searcher or self.searcher_id,
             window_start=at(day, start),
             window_end=at(day, end),
             area_code=area,
             area_centroid=F7,
+            **filters,
         )
 
 
@@ -141,7 +146,7 @@ class DistanceAndRankingTests(MatchingCase):
         near = self.make_player("near", "isb-f8")
         same = self.make_player("same", "isb-f7")
 
-        order = [m.account_id for m in self.run_search().results]
+        order = [m.account_id for m in self.run_search(max_distance_km=50).results]
 
         self.assertEqual(order, [same, near, far])
 
@@ -166,7 +171,7 @@ class DistanceAndRankingTests(MatchingCase):
         plausible one is."""
         self.make_player("far", "rwp-gulraiz")
 
-        (match,) = self.run_search().results
+        (match,) = self.run_search(max_distance_km=50).results
 
         self.assertGreater(match.distance_km, 15)
         self.assertLess(match.distance_km, 25)

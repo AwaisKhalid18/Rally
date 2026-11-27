@@ -81,3 +81,39 @@ def validate(
         ),
         errors={},
     )
+
+
+# --- Optional filters (S6) ---------------------------------------------------
+# PRD §12.1: playing level is optional and, when omitted, players of any level are
+# returned. Maximum distance is optional with the fixed choices below and defaults to
+# 10 km. Both are M4's rules, not a Platform form's (rule 14).
+
+PLAYING_LEVELS = ("beginner", "intermediate", "advanced")
+DISTANCE_CHOICES_KM = (5, 10, 20, 50)
+DEFAULT_MAX_DISTANCE_KM = 10
+
+LEVEL_INVALID = "Choose Beginner, Intermediate or Advanced, or leave it for any level."
+DISTANCE_INVALID = "Choose 5, 10, 20 or 50 km."
+
+
+def normalise_level(raw: str | None) -> tuple[str | None, str | None]:
+    """Return (level, error). An empty choice means every level."""
+    value = (raw or "").strip().lower()
+    if not value:
+        return None, None
+    if value not in PLAYING_LEVELS:
+        return None, LEVEL_INVALID
+    return value, None
+
+
+def normalise_max_distance(raw) -> tuple[int | None, str | None]:
+    """Return (km, error). An empty choice means the 10 km default."""
+    if raw is None or raw == "":
+        return DEFAULT_MAX_DISTANCE_KM, None
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        return None, DISTANCE_INVALID
+    if value not in DISTANCE_CHOICES_KM:
+        return None, DISTANCE_INVALID
+    return value, None

@@ -30,6 +30,12 @@ END_BEFORE_START = criteria_rules.END_BEFORE_START
 WINDOW_IN_PAST = criteria_rules.WINDOW_IN_PAST
 LOCATION_REQUIRED = criteria_rules.LOCATION_REQUIRED
 LOCATION_INVALID = criteria_rules.LOCATION_INVALID
+LEVEL_INVALID = criteria_rules.LEVEL_INVALID
+DISTANCE_INVALID = criteria_rules.DISTANCE_INVALID
+
+PLAYING_LEVELS = criteria_rules.PLAYING_LEVELS
+DISTANCE_CHOICES_KM = criteria_rules.DISTANCE_CHOICES_KM
+DEFAULT_MAX_DISTANCE_KM = criteria_rules.DEFAULT_MAX_DISTANCE_KM
 
 MatchedSlot = query.MatchedSlot
 Match = query.Match
@@ -57,15 +63,22 @@ def search(
     window_end: _dt.datetime | None,
     area_code: str,
     area_centroid: tuple[float, float] | None,
+    playing_level: str | None = None,
+    max_distance_km=None,
     limit: int = RESULT_LIMIT,
 ) -> SearchOutcome:
     """Filter and rank the players who could play in this window.
 
-    Excluded, all together (PRD §12.1, ASR-02): no slot overlapping the window; an
-    incomplete or unverified profile; a block in either direction; and the searcher.
+    Excluded, all together — the filters combine with AND (PRD §12.1, ASR-02): no slot
+    overlapping the window; outside the maximum distance; a playing level other than the
+    one chosen, when one is chosen; an incomplete or unverified profile; a block in
+    either direction; and the searcher.
 
-    Ranked by distance ascending, then earliest overlapping slot. Level closeness is
-    inserted between them in S6.
+    Ranked by distance ascending, then closeness to the searcher's own playing level,
+    then earliest overlapping slot.
+
+    `playing_level` empty means every level. `max_distance_km` empty means the 10 km
+    default; the choices are 5, 10, 20 and 50 and anything else is rejected.
     """
     checked = criteria_rules.validate(
         window_start=window_start,
@@ -74,8 +87,18 @@ def search(
         area_centroid=area_centroid,
         now=clock.now(),
     )
-    if not checked.ok:
-        return SearchOutcome(errors=dict(checked.errors or {}))
+    errors = dict(checked.errors or {})
+
+    level, level_error = criteria_rules.normalise_level(playing_level)
+    if level_error:
+        errors["playing_level"] = level_error
+
+    distance_km, distance_error = criteria_rules.normalise_max_distance(max_distance_km)
+    if distance_error:
+        errors["max_distance_km"] = distance_error
+
+    if errors:
+        return SearchOutcome(errors=errors)
 
     found = query.run(
         searcher_id=searcher_id,
@@ -83,6 +106,8 @@ def search(
         window_end=checked.criteria.window_end,
         reference_lat=checked.criteria.reference_lat,
         reference_lon=checked.criteria.reference_lon,
+        max_distance_km=distance_km,
+        playing_level=level,
         limit=limit,
     )
     return SearchOutcome(results=tuple(found), errors={})
