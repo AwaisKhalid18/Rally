@@ -29,6 +29,7 @@ urlpatterns = [
     path("players/<int:account_id>/unblock/", views.unblock_player, name="unblock_player"),
     path("players/<int:account_id>/report/", views.report_player, name="report_player"),
     path("blocked/", views.blocked_players, name="blocked_players"),
+    path("compare/", views.compare, name="compare"),
     path("favorites/", views.favorites, name="favorites"),
     path("players/<int:account_id>/favorite/", views.favorite_add, name="favorite_add"),
     path("players/<int:account_id>/unfavorite/", views.favorite_remove, name="favorite_remove"),

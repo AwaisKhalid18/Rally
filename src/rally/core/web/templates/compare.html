@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}Compare players{% endblock %}
+{% block content %}
+<h1>Compare players</h1>
+
+{% if errors.players %}
+  <p class="error">{{ errors.players }}</p>
+{% endif %}
+
+{% if players %}
+  <p class="lead">Side by side, at most {{ maximum }} at a time. Anything Rally cannot
+  work out says so rather than showing a blank.</p>
+
+  <div class="compare-scroll">
+    <table class="compare">
+      <thead>
+        <tr>
+          <th scope="col">Player</th>
+          {% for player in players %}
+            <th scope="col">
+              {% if player.found %}
+                <a href="{% url 'player_profile' player.account_id %}">{{ player.display_name }}</a>
+              {% else %}
+                {# AC3: blocked and non-existent look exactly the same from here. #}
+                {{ player.not_found_reason }}
+              {% endif %}
+            </th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <th scope="row">Playing level</th>
+          {% for player in players %}
+            <td>{% if player.found %}{{ player.playing_level }}{% else %}—{% endif %}</td>
+          {% endfor %}
+        </tr>
+        <tr>
+          <th scope="row">General area</th>
+          {% for player in players %}
+            <td>{% if player.found %}{{ player.area_name }}{% else %}—{% endif %}</td>
+          {% endfor %}
+        </tr>
+        <tr>
+          <th scope="row">Distance</th>
+          {% for player in players %}
+            <td>
+              {% if not player.found %}—
+              {% elif player.distance_text %}{{ player.distance_text }}
+              {% else %}<span class="absent">{{ player.distance_reason }}</span>{% endif %}
+            </td>
+          {% endfor %}
+        </tr>
+        <tr>
+          <th scope="row">Available playing times</th>
+          {% for player in players %}
+            <td>
+              {% if not player.found %}—
+              {% elif player.slots %}
+                <ul class="slots">
+                  {% for slot in player.slots %}<li class="slot">{{ slot.summary }}</li>{% endfor %}
+                </ul>
+              {% else %}<span class="absent">{{ player.no_slots_reason }}</span>{% endif %}
+            </td>
+          {% endfor %}
+        </tr>
+        <tr>
+          <th scope="row"></th>
+          {% for player in players %}
+            <td>
+              {% if player.found %}
+                <a class="button" href="{% url 'invitation_new' player.account_id %}">Invite</a>
+              {% endif %}
+              <a href="{% url 'compare' %}?{% for other in players %}{% if other.account_id != player.account_id %}player={{ other.account_id }}&amp;{% endif %}{% endfor %}">Remove</a>
+            </td>
+          {% endfor %}
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p class="hint">Distance is measured between the centres of general areas and is
+  always approximate. Removing or replacing someone is just a new comparison — nothing
+  here is saved.</p>
+{% elif not errors %}
+  <p class="notice">Nobody selected yet. Pick up to {{ maximum }} players from your
+  search results and compare them here.</p>
+{% endif %}
+
+<p class="aside"><a href="{% url 'search' %}">Find a player</a> ·
+  <a href="{% url 'favorites' %}">Your favorites</a></p>
+{% endblock %}

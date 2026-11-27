@@ -169,3 +169,16 @@ textarea { width: 100%; font: inherit; padding: var(--space-2); border: 1px soli
 .favorite-facts, .favorite-times { margin: 0 0 var(--space-1); font-size: 0.875rem; color: var(--ink-soft); }
 .favorite .result-actions { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; margin: var(--space-2) 0 0; }
 .favorite form.inline { background: none; border: 0; padding: 0; display: inline; }
+
+/* Compare (S14). The table scrolls sideways on a phone rather than reflowing, so the
+   columns stay side by side - which is the point of comparing. */
+.compare-scroll { overflow-x: auto; margin-bottom: var(--space-3); }
+.compare { border-collapse: collapse; width: 100%; min-width: 30rem; background: var(--paper); }
+.compare th, .compare td {
+  border: 1px solid var(--line); padding: var(--space-2); text-align: left;
+  vertical-align: top; font-size: 0.9375rem;
+}
+.compare thead th { background: var(--surface); }
+.compare tbody th { background: var(--surface); font-weight: 600; white-space: nowrap; }
+.compare .slots { margin: 0; padding-left: 1.1rem; }
+.absent { color: var(--ink-soft); font-style: italic; }

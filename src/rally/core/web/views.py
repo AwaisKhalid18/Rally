@@ -998,3 +998,68 @@ def favorite_remove(request, account_id: int):
     else:
         messages.success(request, "Removed from your favorites.")
     return redirect(_safe_next(request))
+
+
+# --- Compare (S14) -----------------------------------------------------------
+#
+# FR-17, which is **not** part of the Validated PRD (architecture §16.1, plan.md A-00).
+
+
+@require_http_methods(["GET"])
+def compare(request):
+    """Compare up to three players side by side (FR-17, architecture §16.5).
+
+    A GET, because it stores nothing and changes nothing: the selection travels in the
+    query string, so removing or replacing a player is simply a different URL (§16.5).
+    That is also why this is one of the few pages where a GET is right — it is a read.
+
+    The cap of three is M4's and is enforced there; this view only reports what M4 said.
+    """
+    from rally.core.shapers.comparison import compared_player_views
+    from rally.modules.profiles.api import facade as profiles
+    from rally.modules.search.api import facade as search_api
+
+    viewer_id = request.viewer.account_id
+    raw = request.GET.getlist("player")
+    selected = [int(value) for value in raw if value.isdigit()]
+
+    if not selected:
+        return render(
+            request,
+            "compare.html",
+            {"players": [], "selected": [], "errors": {}, "maximum": search_api.MAX_COMPARED},
+        )
+
+    # §12.1's reference point: the centre of the viewer's own general area. Platform
+    # resolves it, because the area list is not a published view (the same path
+    # `search` already takes). Without a profile there is no point, and every distance
+    # comes back absent with its reason rather than invented.
+    own = profiles.get_own_profile(viewer_id)
+    centroid = profiles.area_centroid(own.area_code) if own and own.area_code else None
+
+    outcome = search_api.compare(viewer_id, selected, centroid)
+    if not outcome.ok:
+        log_operation("search.compare", "rejected", account_id=viewer_id, selected=len(selected))
+        return render(
+            request,
+            "compare.html",
+            {
+                "players": [],
+                "selected": selected,
+                "errors": outcome.errors,
+                "maximum": search_api.MAX_COMPARED,
+            },
+            status=400,
+        )
+
+    log_operation("search.compare", "done", account_id=viewer_id, compared=len(outcome.players))
+    return render(
+        request,
+        "compare.html",
+        {
+            "players": compared_player_views(outcome.players),
+            "selected": selected,
+            "errors": {},
+            "maximum": search_api.MAX_COMPARED,
+        },
+    )
