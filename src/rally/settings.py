@@ -47,6 +47,9 @@ INSTALLED_APPS = [
     "rally.modules.safety",  # M6
     # M4 Search is NOT a Django app: it owns no tables, so it has nothing to migrate.
     "rally.modules.notification",  # M7
+    # M8 Player Collections. The folder is `player_collections`: a top-level package
+    # called `collections` would shadow the standard library (§3.1).
+    "rally.modules.player_collections",  # M8
 ]
 
 MIDDLEWARE = [
@@ -130,6 +133,11 @@ MESSAGE_STORAGE = "django.contrib.messages.storage.session.SessionStorage"
 # Only the worker reaches it, through the adapter M7 owns. The default backend writes to
 # the console so the demo never depends on a live provider (G-14); Brevo SMTP is switched
 # on by configuration alone, and its credentials are injected, never committed.
+
+# M8 caps (R-15, closing G-07). Configuration values: changing either needs no
+# architecture change. Enforced server-side, never by the page.
+RALLY_MAX_FAVORITES = int(_env("RALLY_MAX_FAVORITES", "50"))
+RALLY_MAX_SAVED_SEARCHES = int(_env("RALLY_MAX_SAVED_SEARCHES", "20"))
 
 RALLY_SITE_URL = _env("RALLY_SITE_URL", "http://127.0.0.1:8000")
 DEFAULT_FROM_EMAIL = _env("RALLY_FROM_EMAIL", "rally@example.com")

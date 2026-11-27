@@ -2,7 +2,7 @@
 #
 # A contract names only packages that exist: import-linter aborts the whole run on an
 # unknown module, so the slice that creates a module adds it to the lists below.
-# Built so far: every module except M8 Player Collections (rally.modules.player_collections).
+# Built so far: every module, M1 to M8 and Platform.
 #
 # Run with:  lint-imports
 
@@ -26,6 +26,8 @@ forbidden_modules =
     rally.modules.notification.models
     rally.modules.safety.internal
     rally.modules.safety.models
+    rally.modules.player_collections.internal
+    rally.modules.player_collections.models
 
 [importlinter:contract:modules-do-not-import-the-web-layer]
 name = A capability module never imports Platform's web layer
@@ -141,6 +143,45 @@ forbidden_modules =
     rally.modules.notification
     rally.core.web
 
+[importlinter:contract:collections-read-views-only]
+name = M8 imports no other capability module; it reads published views (rules 1, 11, 12)
+type = forbidden
+# M8's display is composed from `v_searchable_profile`, `v_active_availability` and
+# `v_block_pairs` in SQL, so it needs no import of M2, M3 or M6 at all - which is why
+# they are forbidden here rather than merely restricted to their facades. M4 is
+# forbidden in both directions: M8 does not execute a search and M4 does not read M8
+# (rule 12, architecture section 16.6).
+source_modules =
+    rally.modules.player_collections.api
+    rally.modules.player_collections.internal
+    rally.modules.player_collections.views
+    rally.modules.player_collections.models
+forbidden_modules =
+    rally.modules.identity
+    rally.modules.profiles
+    rally.modules.availability
+    rally.modules.search
+    rally.modules.invitations
+    rally.modules.safety
+    rally.modules.notification
+    rally.core.web
+    rally.settings
+    rally.urls
+
+[importlinter:contract:nothing-imports-collections]
+name = Nothing depends on M8; it is a leaf (AGENTS.md section 3)
+type = forbidden
+source_modules =
+    rally.modules.identity
+    rally.modules.profiles
+    rally.modules.availability
+    rally.modules.search
+    rally.modules.invitations
+    rally.modules.safety
+    rally.modules.notification
+forbidden_modules =
+    rally.modules.player_collections
+
 [importlinter:contract:nothing-imports-search]
 name = Only Platform calls M4; no capability module imports it (rule 9)
 type = forbidden
@@ -181,3 +222,5 @@ forbidden_modules =
     rally.modules.availability.models
     rally.modules.safety.internal
     rally.modules.safety.models
+    rally.modules.player_collections.internal
+    rally.modules.player_collections.models
