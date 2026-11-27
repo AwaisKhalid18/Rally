@@ -22,6 +22,7 @@
   </dl>
   <p class="result-actions">
     <a class="button" href="{% url 'invitation_new' player.account_id %}">Invite</a>
+    {% include "_safety_actions.html" with account_id=player.account_id back_to=request.path %}
   </p>
   <p class="hint">Approximate distance to this player is shown on search results, where
   it is measured from the area you searched in.</p>

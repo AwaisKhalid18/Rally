@@ -46,5 +46,9 @@
   </form>
 {% endif %}
 
+<p class="safety-line">Something wrong with this invitation?
+  {% include "_safety_actions.html" with account_id=invitation.other_party_account_id back_to=request.path invitation_id=invitation.invitation_id %}
+</p>
+
 <p class="aside"><a href="{% url 'invitations' %}">Back to your invitations</a></p>
 {% endblock %}

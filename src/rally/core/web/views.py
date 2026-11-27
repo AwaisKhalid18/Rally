@@ -748,3 +748,156 @@ def game_cancel(request, game_id: int):
         "again, so you can look for another partner.",
     )
     return redirect("games")
+
+
+# --- Safety: block, unblock, report (S12) ------------------------------------
+#
+# Every rule lives in M6. These views resolve the player, pass the request on and
+# report what M6 decided (rule 14). The one thing they must not do is tell anybody
+# that a block exists: see `blocked_players` below.
+
+
+def _player_or_404(account_id: int, viewer_id: int):
+    """The target of a block or a report, as a public view model.
+
+    A player who does not exist, and the viewer themselves, are both a not-found.
+    """
+    from rally.modules.profiles.api import facade as profiles
+
+    if account_id == viewer_id:
+        raise Http404("No such player.")
+    profile = profiles.get_public_profile(account_id)
+    if profile is None:
+        raise Http404("No such player.")
+    return profile
+
+
+@require_http_methods(["POST"])
+def block_player(request, account_id: int):
+    """Block a player from their profile, a search result or an invitation (AC1).
+
+    POST with CSRF; blocking changes state and cancels invitations, so it is never a
+    GET (FE-9). The cascade is M6's, inside M6's transaction.
+    """
+    from rally.modules.safety.api import facade as safety
+
+    viewer_id = request.viewer.account_id
+    profile = _player_or_404(account_id, viewer_id)
+
+    result = safety.block(viewer_id, account_id)
+    if not result.ok:
+        messages.error(request, result.error)
+        return redirect(_safe_next(request))
+
+    cancelled = len(result.cancelled_invitation_ids)
+    # Said plainly, and only after the transaction committed (FE-5). The count is the
+    # player's own invitations with this player, so naming it tells them nothing new.
+    note = f"You have blocked {profile.display_name}."
+    if cancelled:
+        note += (
+            f" {cancelled} pending invitation(s) between you were cancelled."
+            " Any confirmed game is unaffected until one of you cancels it."
+        )
+    messages.success(request, note)
+    return redirect("blocked_players")
+
+
+@require_http_methods(["POST"])
+def unblock_player(request, account_id: int):
+    """Unblock from the blocked-players list (AC3).
+
+    Visibility returns at once. The cancelled invitations stay cancelled — nothing
+    leaves a terminal status (PRD §12.5).
+    """
+    from rally.modules.safety.api import facade as safety
+
+    viewer_id = request.viewer.account_id
+    result = safety.unblock(viewer_id, account_id)
+    if not result.ok:
+        messages.error(request, result.error)
+    else:
+        messages.success(
+            request,
+            "Unblocked. You can see each other again, and either of you can send a new "
+            "invitation. The invitations that were cancelled stay cancelled.",
+        )
+    return redirect("blocked_players")
+
+
+@require_http_methods(["GET"])
+def blocked_players(request):
+    """The players you have blocked (AC3).
+
+    **Your own blocks only.** M6 publishes no way to learn that somebody blocked you,
+    and this page must never grow one: being told would defeat the point of blocking.
+    """
+    from rally.modules.profiles.api import facade as profiles
+    from rally.modules.safety.api import facade as safety
+
+    from rally.core.shapers.safety import blocked_player_views
+
+    rows = safety.list_blocked(request.viewer.account_id)
+    names = {
+        row.blocked_account_id: profiles.get_public_profile(row.blocked_account_id)
+        for row in rows
+    }
+    return render(
+        request,
+        "blocked_players.html",
+        {"blocked": blocked_player_views(rows, names)},
+    )
+
+
+@require_http_methods(["GET", "POST"])
+def report_player(request, account_id: int):
+    """Report a player from their profile or from an invitation (AC4).
+
+    A category and optional free text. Nothing is sent to anyone and the reported
+    player is not told. The categories offered are the ones M6 accepts, read from M6,
+    so the form and the rule cannot drift apart.
+    """
+    from rally.modules.safety.api import facade as safety
+
+    viewer_id = request.viewer.account_id
+    profile = _player_or_404(account_id, viewer_id)
+    invitation_id = request.POST.get("invitation_id") or request.GET.get("invitation_id")
+    invitation_id = int(invitation_id) if (invitation_id or "").isdigit() else None
+
+    def page(values, errors=None, status=200):
+        return render(
+            request,
+            "report_player.html",
+            {
+                "player": profile,
+                "categories": safety.REPORT_CATEGORIES,
+                "details_max_length": safety.REPORT_DETAILS_MAX_LENGTH,
+                "invitation_id": invitation_id,
+                "values": values,
+                "errors": errors or {},
+            },
+            status=status,
+        )
+
+    if request.method == "GET":
+        return page({"category": "", "details": ""})
+
+    values = {
+        "category": request.POST.get("category", ""),
+        "details": request.POST.get("details", ""),
+    }
+    result = safety.report(
+        reporter_account_id=viewer_id,
+        reported_account_id=account_id,
+        category=values["category"],
+        details=values["details"],
+        invitation_id=invitation_id,
+    )
+    if not result.ok:
+        return page(values, result.errors, status=400)
+
+    messages.success(
+        request,
+        "Thank you. Your report has been recorded and will be reviewed. You will not "
+        "hear about it again here, and the other player is not told you reported them.",
+    )
+    return redirect("player_profile", account_id=account_id)

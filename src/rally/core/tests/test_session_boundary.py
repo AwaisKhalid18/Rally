@@ -24,6 +24,9 @@ SAMPLE_ARGS = {
     "invitation_cancel": {"invitation_id": 999999},
     "notification_read": {"notification_id": 999999},
     "game_cancel": {"game_id": 999999},
+    "block_player": {"account_id": 999999},
+    "unblock_player": {"account_id": 999999},
+    "report_player": {"account_id": 999999},
 }
 
 

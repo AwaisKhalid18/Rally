@@ -1,0 +1,14 @@
+{% comment %}
+  Block and report, offered wherever a player appears: their profile, a search result
+  and an invitation (S12 AC1, AC4). Blocking is a POST with CSRF because it changes
+  state and cancels invitations (FE-9); reporting opens a form.
+  `next` brings the player back where they were if the block is refused.
+{% endcomment %}
+<span class="safety-actions">
+  <form method="post" action="{% url 'block_player' account_id %}" class="inline">
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ back_to }}">
+    <button type="submit" class="link-button">Block</button>
+  </form>
+  <a href="{% url 'report_player' account_id %}{% if invitation_id %}?invitation_id={{ invitation_id }}{% endif %}">Report</a>
+</span>

@@ -28,6 +28,9 @@ _WORDING = {
     "invitation.declined": "An invitation you sent was declined.",
     "invitation.cancelled": "An invitation you received was cancelled by the player who sent it.",
     "game.cancelled": "A confirmed game was cancelled by the other player. That time is free again.",
+    # S12: the block cascade. This must not say a block happened - see the event's
+    # comment in rally.core.ports.outbox.
+    "invitation.cancelled_by_block": "An invitation is no longer available and has been cancelled.",
 }
 
 # Rule 13 again: an event this build has no sentence for is still shown, honestly.

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Blocked players{% endblock %}
+{% block content %}
+<h1>Players you have blocked</h1>
+
+{% if blocked %}
+  <ul class="blocked">
+    {% for player in blocked %}
+      <li class="blocked-player">
+        <span class="blocked-name">{{ player.display_name }}</span>
+        <span class="when">Blocked {{ player.since_text }}</span>
+        <form method="post" action="{% url 'unblock_player' player.account_id %}" class="inline">
+          {% csrf_token %}
+          <button type="submit" class="link-button">Unblock</button>
+        </form>
+      </li>
+    {% endfor %}
+  </ul>
+  <p class="hint">Unblocking means you can see each other in search again and either of
+  you can send a new invitation. Invitations that were cancelled when you blocked stay
+  cancelled.</p>
+{% else %}
+  <p class="notice">You have not blocked anyone. You can block a player from their
+  profile, from a search result or from an invitation.</p>
+{% endif %}
+
+<p class="aside"><a href="{% url 'home' %}">Back</a></p>
+{% endblock %}

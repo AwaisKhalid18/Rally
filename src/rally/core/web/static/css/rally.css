@@ -138,3 +138,21 @@ input:focus-visible, button:focus-visible, a:focus-visible {
 .status--cancelled { color: var(--danger); }
 .actions { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
 .actions form.inline { background: none; border: 0; padding: 0; }
+
+/* Safety (S12). Block and report sit beside Invite, quieter than it: they are there
+   when needed and never the obvious thing to press. */
+.safety-actions { display: inline-flex; align-items: center; gap: var(--space-3); margin-left: var(--space-3); }
+.safety-actions form.inline { background: none; border: 0; padding: 0; display: inline; }
+.safety-line { color: var(--ink-soft); font-size: 0.875rem; margin-top: var(--space-4); }
+.blocked { list-style: none; margin: 0 0 var(--space-4); padding: 0; }
+.blocked-player {
+  background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: var(--space-3); margin-bottom: var(--space-2);
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-3);
+}
+.blocked-name { font-weight: 600; }
+.blocked-player form.inline { background: none; border: 0; padding: 0; margin-left: auto; }
+.choice { display: block; font-weight: 400; margin-bottom: var(--space-1); }
+.choice input { margin-right: var(--space-2); }
+.label { display: block; font-weight: 600; margin-bottom: var(--space-1); }
+textarea { width: 100%; font: inherit; padding: var(--space-2); border: 1px solid var(--line); border-radius: var(--radius); }

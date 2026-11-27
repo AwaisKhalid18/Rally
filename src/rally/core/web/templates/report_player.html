@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Report a player{% endblock %}
+{% block content %}
+<h1>Report {{ player.display_name }}</h1>
+
+<p class="lead">Choose what happened. You can add details if you want to, but you do not
+have to. The report goes to the people who run Rally for review. {{ player.display_name }}
+is not told that you reported them, and you will not hear about it again here.</p>
+
+<form method="post" action="{% url 'report_player' player.account_id %}">
+  {% csrf_token %}
+  {% if invitation_id %}
+    <input type="hidden" name="invitation_id" value="{{ invitation_id }}">
+  {% endif %}
+
+  <div class="field">
+    <span class="label">What happened</span>
+    {% for value, label in categories %}
+      <label class="choice">
+        <input type="radio" name="category" value="{{ value }}"
+               {% if values.category == value %}checked{% endif %}>
+        {{ label }}
+      </label>
+    {% endfor %}
+    {% if errors.category %}<p class="error">{{ errors.category }}</p>{% endif %}
+    {% if errors.reported %}<p class="error">{{ errors.reported }}</p>{% endif %}
+  </div>
+
+  <div class="field">
+    <label for="details">Details (optional)</label>
+    <textarea id="details" name="details" rows="5"
+              maxlength="{{ details_max_length }}">{{ values.details }}</textarea>
+    <p class="hint">Up to {{ details_max_length }} characters.</p>
+    {% if errors.details %}<p class="error">{{ errors.details }}</p>{% endif %}
+  </div>
+
+  <button type="submit" class="button">Send the report</button>
+</form>
+
+<p class="aside"><a href="{% url 'player_profile' player.account_id %}">Back to the
+  player</a></p>
+{% endblock %}
