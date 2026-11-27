@@ -37,9 +37,13 @@ class ResultView:
     slots: tuple[SlotView, ...]
     distance_text: str | None
     distance_reason: str | None
+    # S13: whether the viewer has already favorited this player, so the card can offer
+    # Add or Remove without a per-result call (ASR-13). It is presentation state, not
+    # part of the match: M4 neither knows nor may know about M8 (rule 12).
+    is_favorited: bool = False
 
 
-def result_view(match: Match) -> ResultView:
+def result_view(match: Match, is_favorited: bool = False) -> ResultView:
     if match.distance_km is None:
         distance_text, distance_reason = None, DISTANCE_UNAVAILABLE
     else:
@@ -47,6 +51,7 @@ def result_view(match: Match) -> ResultView:
         distance_reason = None
 
     return ResultView(
+        is_favorited=is_favorited,
         account_id=match.account_id,
         display_name=match.display_name,
         playing_level=match.playing_level.capitalize(),
@@ -57,8 +62,8 @@ def result_view(match: Match) -> ResultView:
     )
 
 
-def result_views(matches) -> list[ResultView]:
-    return [result_view(match) for match in matches]
+def result_views(matches, favorited_ids=frozenset()) -> list[ResultView]:
+    return [result_view(match, match.account_id in favorited_ids) for match in matches]
 
 
 def no_results_guidance(level_used: bool, distance_used: bool) -> str:

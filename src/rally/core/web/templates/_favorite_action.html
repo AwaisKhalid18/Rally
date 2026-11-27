@@ -1,0 +1,18 @@
+{% comment %}
+  Add or Remove, offered wherever a player appears (S13 AC1). Which one is shown comes
+  from M8 via `is_favorited`, so the page never guesses. POST with CSRF, because it
+  changes state (FE-9); `next` returns the player to where they were.
+{% endcomment %}
+{% if is_favorited %}
+  <form method="post" action="{% url 'favorite_remove' account_id %}" class="inline">
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ back_to }}">
+    <button type="submit" class="link-button">Remove from favorites</button>
+  </form>
+{% else %}
+  <form method="post" action="{% url 'favorite_add' account_id %}" class="inline">
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ back_to }}">
+    <button type="submit" class="link-button">Add to favorites</button>
+  </form>
+{% endif %}

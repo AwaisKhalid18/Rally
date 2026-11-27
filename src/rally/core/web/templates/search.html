@@ -79,6 +79,7 @@ times overlap yours, nearest first.</p>
           </p>
           <p class="result-actions">
             <a class="button" href="{% url 'invitation_new' player.account_id %}">Invite</a>
+            {% include "_favorite_action.html" with account_id=player.account_id back_to=request.get_full_path is_favorited=player.is_favorited %}
             {% include "_safety_actions.html" with account_id=player.account_id back_to=request.get_full_path %}
           </p>
         </li>

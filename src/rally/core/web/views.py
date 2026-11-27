@@ -225,10 +225,17 @@ def player_profile(request, account_id: int):
     # Availability slots are a public field (PRD §12.2) and are composed here, read-only,
     # from M3's facade (rule 14). Approximate distance joins them when search arrives.
     slots = slot_views(availability_api.list_slots(account_id))
+    from rally.modules.player_collections.api import facade as collections
+
     return render(
         request,
         "player_profile.html",
-        {"player": view, "slots": slots, "no_slots_reason": NO_SLOTS_OTHER},
+        {
+            "player": view,
+            "slots": slots,
+            "no_slots_reason": NO_SLOTS_OTHER,
+            "is_favorited": collections.is_favorite(request.viewer.account_id, account_id),
+        },
     )
 
 
@@ -444,7 +451,23 @@ def search(request):
         account_id=request.viewer.account_id,
         results=len(outcome.results),
     )
-    return page(results=result_views(outcome.results), searched=True)
+    # One lookup for the whole page, not one per result (ASR-13). Platform composes
+    # M4 and M8 here; neither reads the other (rule 12).
+    favorited = _favorited_ids(request.viewer.account_id)
+    return page(results=result_views(outcome.results, favorited), searched=True)
+
+
+def _favorited_ids(viewer_id) -> set:
+    """The accounts this viewer has favorited, as one set (ASR-13).
+
+    Read-only composition in Platform: M8 does not call M4 and M4 does not read M8
+    (rule 12), so the page is where the two meet.
+    """
+    from rally.modules.player_collections.api import facade as collections
+
+    if viewer_id is None:
+        return set()
+    return {entry.favorited_account_id for entry in collections.list_favorites(viewer_id)}
 
 
 def _invitation_views(records, viewer_id):
@@ -901,3 +924,77 @@ def report_player(request, account_id: int):
         "hear about it again here, and the other player is not told you reported them.",
     )
     return redirect("player_profile", account_id=account_id)
+
+
+# --- Favorites (S13) ---------------------------------------------------------
+#
+# FR-16, which is **not** part of the Validated PRD (architecture §16.1, plan.md A-00).
+#
+# Every rule is M8's: the cap, the ownership check, what happens to an entry whose
+# account is gone, and which pairs are omitted. These views pass the request on and
+# print what M8 returned (rule 14).
+
+
+@require_http_methods(["GET"])
+def favorites(request):
+    """A player's own favorites (FR-16).
+
+    A favorite with no future playing times is **shown** with its reason, not hidden:
+    the player curated this list, and dropping an entry silently is the behaviour
+    FR-13 forbids for search criteria (architecture §16.8). Blocked pairs are the one
+    exception and M8 omits them.
+    """
+    from rally.modules.player_collections.api import facade as collections
+
+    from rally.core.shapers.collections import favorite_views
+
+    viewer_id = request.viewer.account_id
+    entries = collections.list_favorites(viewer_id)
+    return render(
+        request,
+        "favorites.html",
+        {
+            "favorites": favorite_views(entries),
+            "count": len(entries),
+            "maximum": collections.max_favorites(),
+        },
+    )
+
+
+@require_http_methods(["POST"])
+def favorite_add(request, account_id: int):
+    """Add a player from their profile or a search result.
+
+    POST with CSRF (FE-9). Favoriting notifies nobody and writes no outbox record: the
+    list is private (§16.8).
+    """
+    from rally.modules.player_collections.api import facade as collections
+
+    viewer_id = request.viewer.account_id
+    profile = _player_or_404(account_id, viewer_id)
+
+    result = collections.add_favorite(viewer_id, account_id)
+    if not result.ok:
+        messages.error(request, result.error)
+    else:
+        messages.success(request, f"{profile.display_name} is in your favorites.")
+    return redirect(_safe_next(request))
+
+
+@require_http_methods(["POST"])
+def favorite_remove(request, account_id: int):
+    """Remove a player from your own list.
+
+    No `_player_or_404` here: an entry whose account can no longer be resolved shows
+    "No longer available" and must still be removable (AC2), so the profile is not
+    looked up first.
+    """
+    from rally.modules.player_collections.api import facade as collections
+
+    viewer_id = request.viewer.account_id
+    result = collections.remove_favorite(viewer_id, account_id)
+    if not result.ok:
+        messages.error(request, result.error)
+    else:
+        messages.success(request, "Removed from your favorites.")
+    return redirect(_safe_next(request))

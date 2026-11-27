@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Your favorites{% endblock %}
+{% block content %}
+<h1>Your favorite players</h1>
+
+{% if favorites %}
+  <p class="lead">{{ count }} of {{ maximum }}. These are the players you saved. What
+  each one shows is read fresh every time, so it is never out of date.</p>
+
+  <ul class="favorites">
+    {% for player in favorites %}
+      <li class="favorite{% if not player.is_resolvable %} favorite--unavailable{% endif %}">
+        <h3>
+          {% if player.is_resolvable %}
+            <a href="{% url 'player_profile' player.account_id %}">{{ player.display_name }}</a>
+          {% else %}
+            {# AC2: the account cannot be resolved, so there is no profile to open and
+               the reason stands where the name would be. It stays removable. #}
+            {{ player.unavailable_reason }}
+          {% endif %}
+        </h3>
+
+        {% if player.is_resolvable %}
+          <p class="favorite-facts">
+            <span class="level">{{ player.playing_level }}</span> ·
+            <span class="area">{{ player.area_name }}</span>
+          </p>
+          <p class="favorite-times">
+            {% if player.slots %}
+              Available:
+              {% for slot in player.slots %}{{ slot.summary }}{% if not forloop.last %}; {% endif %}{% endfor %}
+            {% else %}
+              {# FE-6: shown with its reason, never hidden and never blank. #}
+              {{ player.no_slots_reason }}
+            {% endif %}
+          </p>
+          <p class="result-actions">
+            <a class="button" href="{% url 'invitation_new' player.account_id %}">Invite</a>
+            <form method="post" action="{% url 'favorite_remove' player.account_id %}" class="inline">
+              {% csrf_token %}
+              <input type="hidden" name="next" value="{% url 'favorites' %}">
+              <button type="submit" class="link-button">Remove</button>
+            </form>
+          </p>
+        {% else %}
+          <p class="favorite-times">You can remove this one from your list.</p>
+          <form method="post" action="{% url 'favorite_remove' player.account_id %}" class="inline">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{% url 'favorites' %}">
+            <button type="submit" class="link-button">Remove</button>
+          </form>
+        {% endif %}
+        <p class="hint">Added {{ player.added_text }}</p>
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p class="notice">You have no favorites yet. Add a player from their profile or from a
+  search result, and they will be here next time.</p>
+{% endif %}
+
+<p class="aside"><a href="{% url 'search' %}">Find a player</a></p>
+{% endblock %}

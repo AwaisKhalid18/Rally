@@ -27,6 +27,8 @@ SAMPLE_ARGS = {
     "block_player": {"account_id": 999999},
     "unblock_player": {"account_id": 999999},
     "report_player": {"account_id": 999999},
+    "favorite_add": {"account_id": 999999},
+    "favorite_remove": {"account_id": 999999},
 }
 
 

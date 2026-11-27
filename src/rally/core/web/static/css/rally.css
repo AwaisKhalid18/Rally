@@ -156,3 +156,16 @@ input:focus-visible, button:focus-visible, a:focus-visible {
 .choice input { margin-right: var(--space-2); }
 .label { display: block; font-weight: 600; margin-bottom: var(--space-1); }
 textarea { width: 100%; font: inherit; padding: var(--space-2); border: 1px solid var(--line); border-radius: var(--radius); }
+
+/* Favorites (S13). An entry whose account cannot be resolved is dimmed but still
+   present and still removable - never silently dropped. */
+.favorites { list-style: none; margin: 0 0 var(--space-4); padding: 0; }
+.favorite {
+  background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: var(--space-3); margin-bottom: var(--space-3);
+}
+.favorite h3 { margin: 0 0 var(--space-1); font-size: 1rem; }
+.favorite--unavailable { color: var(--ink-soft); border-style: dashed; }
+.favorite-facts, .favorite-times { margin: 0 0 var(--space-1); font-size: 0.875rem; color: var(--ink-soft); }
+.favorite .result-actions { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; margin: var(--space-2) 0 0; }
+.favorite form.inline { background: none; border: 0; padding: 0; display: inline; }
