@@ -34,6 +34,29 @@ times overlap yours, nearest first.</p>
     {% if errors.area_code %}<p class="error">{{ errors.area_code }}</p>{% endif %}
   </div>
 
+  <div class="field">
+    <label for="id_playing_level">Playing level <span class="hint">(optional)</span></label>
+    <select name="playing_level" id="id_playing_level">
+      <option value="">Any level</option>
+      {% for level in levels %}
+        <option value="{{ level.code }}"{% if level.code == values.playing_level %} selected{% endif %}>{{ level.name }}</option>
+      {% endfor %}
+    </select>
+    {% if errors.playing_level %}<p class="error">{{ errors.playing_level }}</p>{% endif %}
+  </div>
+
+  <div class="field">
+    <label for="id_max_distance_km">Maximum distance <span class="hint">(optional)</span></label>
+    <select name="max_distance_km" id="id_max_distance_km">
+      {% for km in distance_choices %}
+        <option value="{{ km }}"{% if values.max_distance_km == km|stringformat:"s" %} selected{% elif not values.max_distance_km and km == default_distance %} selected{% endif %}>{{ km }} km</option>
+      {% endfor %}
+    </select>
+    <p class="hint">Defaults to {{ default_distance }} km. Measured between area centres,
+    so it is approximate.</p>
+    {% if errors.max_distance_km %}<p class="error">{{ errors.max_distance_km }}</p>{% endif %}
+  </div>
+
   <button type="submit" class="button">Search</button>
 </form>
 

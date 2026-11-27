@@ -16,8 +16,10 @@ OTHER = 2
 
 
 def at(day_offset: int, hour: int, minute: int = 0) -> _dt.datetime:
-    base = clock.now().replace(minute=0, second=0, microsecond=0)
-    return base + _dt.timedelta(days=day_offset, hours=hour - base.hour, minutes=minute)
+    # Anchored on midnight, not on "now": re-reading the clock per call made the
+    # fixture and the search window disagree whenever the hour rolled over mid-test.
+    midnight = clock.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    return midnight + _dt.timedelta(days=day_offset, hours=hour, minutes=minute)
 
 
 class AddSlotTests(TestCase):

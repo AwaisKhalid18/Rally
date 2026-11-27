@@ -59,3 +59,22 @@ def result_view(match: Match) -> ResultView:
 
 def result_views(matches) -> list[ResultView]:
     return [result_view(match) for match in matches]
+
+
+def no_results_guidance(level_used: bool, distance_used: bool) -> str:
+    """FR-13: say that nothing matched and suggest what to change — including the
+    optional filters, but only when the player actually applied them.
+
+    It suggests; it never acts. The criteria come back exactly as submitted and no
+    search is re-run with widened values (FE-7).
+    """
+    adjustments = ["a different date", "a wider time window", "another area"]
+    if level_used:
+        adjustments.append("any playing level")
+    if distance_used:
+        adjustments.append("a larger maximum distance")
+    return (
+        "No players match that search. Try "
+        + ", ".join(adjustments[:-1])
+        + f" or {adjustments[-1]}."
+    )

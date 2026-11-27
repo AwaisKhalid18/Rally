@@ -348,12 +348,6 @@ def availability_delete(request, slot_id: int):
     return redirect("availability")
 
 
-NO_RESULTS_GUIDANCE = (
-    "No players match that search. Try a different date, a wider time window, "
-    "or another area."
-)
-
-
 @require_http_methods(["GET"])
 def search(request):
     """Find a partner (FR-02, FR-03, FR-05, FR-13; ASR-01, ASR-02, ASR-13).
@@ -367,7 +361,7 @@ def search(request):
     and passes it in. Platform decides nothing: M4 judges the criteria (rule 14).
     """
     from rally.core.localtime import LocalTimeInvalid, parse_local
-    from rally.core.shapers.search import result_views
+    from rally.core.shapers.search import no_results_guidance, result_views
     from rally.modules.profiles.api import facade as profiles
     from rally.modules.search.api import facade as search_api
 
@@ -376,6 +370,10 @@ def search(request):
         "start": request.GET.get("start", ""),
         "end": request.GET.get("end", ""),
         "area_code": request.GET.get("area_code", ""),
+        # Optional (PRD §12.1). An empty level means any level; an empty distance means
+        # the 10 km default. M4 decides both — Platform only carries them.
+        "playing_level": request.GET.get("playing_level", ""),
+        "max_distance_km": request.GET.get("max_distance_km", ""),
     }
     areas = profiles.list_areas()
     submitted = any(values.values())
@@ -387,10 +385,16 @@ def search(request):
             {
                 "values": values,          # echoed back exactly as submitted (FR-13)
                 "areas": areas,
+                "levels": profiles.playing_levels(),
+                "distance_choices": search_api.DISTANCE_CHOICES_KM,
+                "default_distance": search_api.DEFAULT_MAX_DISTANCE_KM,
                 "results": results or [],
                 "errors": errors or {},
                 "searched": searched,
-                "no_results_guidance": NO_RESULTS_GUIDANCE,
+                "no_results_guidance": no_results_guidance(
+                    level_used=bool(values["playing_level"]),
+                    distance_used=bool(values["max_distance_km"]),
+                ),
             },
             status=status,
         )
@@ -427,6 +431,8 @@ def search(request):
         window_end=window_end,
         area_code=values["area_code"],
         area_centroid=centroid,
+        playing_level=values["playing_level"],
+        max_distance_km=values["max_distance_km"],
     )
     if not outcome.ok:
         log_operation("search.run", "rejected", account_id=request.viewer.account_id)
