@@ -3,12 +3,14 @@
 Shape of one record, deliberately in three steps so that **no transaction encloses the
 external call** (rule 5):
 
-    transaction A   claim the record, create the in-app notification
+    transaction A   claim the record
     (no transaction) compose the message and hand it to the provider
     transaction B   record what the provider actually reported
 
-The in-app notification is created first and always succeeds locally, so a provider
-outage degrades email only - never the state a player sees (ASR-12).
+The in-app notification is not created here. The appender wrote it in the transaction
+that changed the business state, so it already exists before the worker ever looks: a
+provider outage, or a stopped worker, degrades email only and never the state a player
+sees (plan.md S10 AC2, ASR-12).
 """
 from __future__ import annotations
 
@@ -57,7 +59,11 @@ def due_record_ids(now: _dt.datetime, limit: int) -> list[int]:
 
 
 def _claim(record_id: int) -> Outbox | None:
-    """Transaction A: take the record and make sure the in-app notification exists."""
+    """Transaction A: take the record, and make sure its in-app notification exists.
+
+    The appender writes that notification, so the `get_or_create` below is a safety net
+    for a record appended before S10 moved it there - not the normal path.
+    """
     with transaction.atomic():
         record = (
             Outbox.objects.select_for_update(skip_locked=True)

@@ -7,7 +7,7 @@ In-app notifications, email dispatch, the retry policy and delivery state.
 | **Owns** | `outbox`, `notification` |
 | **Depends on** | M1 Identity only — the delivery address and the verification token, read at send time and dropped again (architecture §6.1 recorded refinement) |
 | **Serves** | FR-10, FR-12; ASR-11, ASR-12 |
-| **Slice** | S2 (outbox, worker, verification email). Invitation notifications arrive in S10. |
+| **Slice** | S2 (outbox, worker, verification email) · S10 (the in-app inbox, read/unread, honest email status). |
 
 ## How a module notifies without knowing M7 exists
 
@@ -28,13 +28,15 @@ looks like a contact address.
 The worker (`python manage.py run_worker`) drives it. Each record goes through three
 steps so that **no transaction encloses the provider call** (rule 5):
 
-1. *transaction* — claim the row `FOR UPDATE SKIP LOCKED`, create the in-app
-   notification (idempotent on `source_outbox`).
+1. *transaction* — claim the row `FOR UPDATE SKIP LOCKED`.
 2. *no transaction* — compose the message, read the address from M1, call the adapter.
 3. *transaction* — record what the provider actually reported.
 
-The in-app notification always succeeds locally, so a provider outage degrades email
-only (ASR-12).
+The in-app notification is **not** created here. The appender writes it in the
+transaction that changed the business state, so it is committed with the accept, decline
+or cancellation that caused it and exists before the worker ever looks. A provider
+outage — or a worker that never starts — therefore degrades email only, and the player's
+inbox is still complete (S10 AC2, ASR-12).
 
 ## Retry policy (PRD §12.3)
 
@@ -60,6 +62,27 @@ tests never depend on a live provider (G-14); `RALLY_EMAIL_LIVE=1` switches it o
 - **Rule 1.** Only M7 writes `outbox` and `notification`; nothing reads them.
 - **Rule 3.** Nothing imports M7. Platform's worker host is its only caller.
 
+## The in-app inbox (S10)
+
+| Operation | Notes |
+| --- | --- |
+| `list_for_player(account_id, limit=50)` | Newest first. Event types and ids — no wording, no links, no address. |
+| `unread_count(account_id)` | The header badge. |
+| `mark_read(notification_id, account_id)` | Owner only. `False` for a stranger's row **and** for one that does not exist: a different answer would confirm it exists (ASR-05). |
+| `mark_all_read(account_id)` | Returns how many were marked. |
+
+M7 says *what* happened; Platform's shaper decides how it is worded and where it links.
+A notification is never deleted when it is read — the inbox is a record of what happened.
+
+### The email status a player sees
+
+`queued`, `sent`, `failed`. Nothing else, and **never "delivered"**: `sent` means the
+provider accepted the message (AGENTS.md §5 Honest feedback, FE-5, G-03). When a
+notification has no outbox record at all, the page shows the reason, not a blank
+(rule 13).
+
 ## Published read view
 
-None. Nothing depends on M7 (AGENTS.md §3).
+None, and nothing depends on M7 (AGENTS.md §3): no capability module may call it. The
+facade's two groups of operations are both for **Platform** — the worker host dispatches
+and the web host renders a player's own inbox, which is rule 14 doing its job.
