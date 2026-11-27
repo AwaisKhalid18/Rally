@@ -13,8 +13,12 @@ from __future__ import annotations
 import datetime as _dt
 from dataclasses import dataclass
 
-from rally.modules.invitations.internal import sending
-from rally.modules.invitations.internal.models import Invitation, InvitationStatus
+from rally.modules.invitations.internal import responding, sending
+from rally.modules.invitations.internal.models import (
+    ConfirmedGame,
+    Invitation,
+    InvitationStatus,
+)
 
 EXPIRY_WINDOW = sending.EXPIRY_WINDOW
 VENUE_MIN_LENGTH = sending.VENUE_MIN_LENGTH
@@ -124,3 +128,76 @@ def get_for_participant(invitation_id: int, account_id: int) -> InvitationRecord
     if account_id not in (row.sender_account_id, row.recipient_account_id):
         return None
     return _record(row)
+
+
+# --- Responding (S8) ---------------------------------------------------------
+
+NOT_FOUND = responding.NOT_FOUND
+NOT_THE_RECIPIENT = responding.NOT_THE_RECIPIENT
+NO_LONGER_PENDING = responding.NO_LONGER_PENDING
+HAS_EXPIRED = responding.HAS_EXPIRED
+NO_LONGER_AVAILABLE = responding.NO_LONGER_AVAILABLE
+OVERLAPPING_GAME = responding.OVERLAPPING_GAME
+
+
+@dataclass(frozen=True)
+class ResponseResult:
+    invitation_id: int | None = None
+    game_id: int | None = None
+    error: str | None = None
+
+    @property
+    def ok(self) -> bool:
+        return self.error is None
+
+
+def accept(invitation_id: int, account_id: int) -> ResponseResult:
+    """Accept an invitation and create the confirmed game, atomically.
+
+    FR-09, FR-15, PRD §12.3, §12.4; ASR-07, ASR-08; ADR-004.
+
+    Only the recipient may accept. A rejection carries the domain reason - never a raw
+    database error.
+    """
+    result = responding.accept(invitation_id, account_id)
+    return ResponseResult(
+        invitation_id=result.invitation_id, game_id=result.game_id, error=result.error
+    )
+
+
+def decline(invitation_id: int, account_id: int) -> ResponseResult:
+    """Decline an invitation. No reason is required (PRD §12.3)."""
+    result = responding.decline(invitation_id, account_id)
+    return ResponseResult(invitation_id=result.invitation_id, error=result.error)
+
+
+@dataclass(frozen=True)
+class GameRecord:
+    game_id: int
+    invitation_id: int
+    starts_at: _dt.datetime
+    ends_at: _dt.datetime
+    venue: str
+    is_cancelled: bool
+
+
+def get_game_for_invitation(invitation_id: int, account_id: int) -> GameRecord | None:
+    """The game an accepted invitation created, for a participant only (ASR-05).
+
+    The full games screen is S11; this is what the invitation page needs to say that
+    the game exists.
+    """
+    record = get_for_participant(invitation_id, account_id)
+    if record is None:
+        return None
+    game = ConfirmedGame.objects.filter(invitation_id=invitation_id).first()
+    if game is None:
+        return None
+    return GameRecord(
+        game_id=game.pk,
+        invitation_id=invitation_id,
+        starts_at=game.starts_at,
+        ends_at=game.ends_at,
+        venue=game.venue,
+        is_cancelled=game.is_cancelled,
+    )

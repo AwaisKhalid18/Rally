@@ -13,6 +13,8 @@ from django.urls import reverse
 
 from rally.core.ports.outbox import (
     EVENT_ACCOUNT_VERIFICATION_REQUESTED,
+    EVENT_INVITATION_ACCEPTED,
+    EVENT_INVITATION_DECLINED,
     EVENT_INVITATION_SENT,
 )
 from rally.modules.identity.api import facade as identity
@@ -85,9 +87,47 @@ def _invitation_sent_message(recipient_account_id: int) -> Message:
     )
 
 
+def _invitation_answered_message(recipient_account_id: int, answer: str, event: str) -> Message:
+    """Told to the SENDER: the recipient has answered (PRD 12.3).
+
+    Like every message M7 composes, it is a nudge with a link. M7 may not read M5, so
+    it cannot say which invitation or when - the in-app record does that (ASR-11).
+    """
+    address = identity.get_delivery_address(recipient_account_id)
+    if address is None:
+        raise MessageCannotBeComposed("no deliverable account")
+
+    link = _site_url() + reverse("invitations")
+    body = (
+        f"One of your Rally invitations was {answer}.\n\n"
+        "Open your invitations to see which one:\n\n"
+        f"{link}\n"
+    )
+    return Message(
+        to_address=address,
+        subject=f"Your Rally invitation was {answer}",
+        body=body,
+        notification_type=event,
+    )
+
+
+def _invitation_accepted_message(recipient_account_id: int) -> Message:
+    return _invitation_answered_message(
+        recipient_account_id, "accepted", EVENT_INVITATION_ACCEPTED
+    )
+
+
+def _invitation_declined_message(recipient_account_id: int) -> Message:
+    return _invitation_answered_message(
+        recipient_account_id, "declined", EVENT_INVITATION_DECLINED
+    )
+
+
 _COMPOSERS = {
     EVENT_ACCOUNT_VERIFICATION_REQUESTED: _verification_message,
     EVENT_INVITATION_SENT: _invitation_sent_message,
+    EVENT_INVITATION_ACCEPTED: _invitation_accepted_message,
+    EVENT_INVITATION_DECLINED: _invitation_declined_message,
 }
 
 

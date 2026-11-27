@@ -43,3 +43,8 @@ def append_outbox(event_type: str, entity_refs: dict[str, Any]) -> int:
 # invitation's details. M7 composes a short message pointing at the in-app record,
 # which is the source of truth for state (architecture §6.6, ASR-11).
 EVENT_INVITATION_SENT = "invitation.sent"
+
+# Added by S8. Both notify the **sender**: PRD §12.3 resolves that the sender is told
+# when a recipient accepts or declines.
+EVENT_INVITATION_ACCEPTED = "invitation.accepted"
+EVENT_INVITATION_DECLINED = "invitation.declined"

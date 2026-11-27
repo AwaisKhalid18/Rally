@@ -5,10 +5,10 @@ no-double-booking invariant. The system's only multi-actor stateful workflow.
 
 | | |
 | --- | --- |
-| **Owns** | `invitation`. `confirmed_game` and `game_participant` arrive with **S8** |
+| **Owns** | `invitation`, `confirmed_game`, `game_participant` |
 | **Depends on** | M3 Availability, M6 Safety, M2 Profile — **not M1** |
 | **Serves** | FR-08, FR-09, FR-10, FR-11, FR-15; ASR-07 … ASR-11 |
-| **Slice** | S7 builds **send and list**. Accept/decline S8, cancel and expiry S9, the games screen S11, `cancelPendingBetween` S12. |
+| **Slice** | S7 send and list · S8 accept, decline and the confirmed game. Cancel and expiry S9, the games screen S11, `cancelPendingBetween` S12. |
 
 ## Published interface — today
 
@@ -16,10 +16,50 @@ no-double-booking invariant. The system's only multi-actor stateful workflow.
 | --- | --- |
 | `send(sender, recipient, starts_at, ends_at, venue)` | Returns the new id, or a field → message mapping. |
 | `list_for_player(account_id)` | `(sent, received)`, newest first. |
+| `accept(invitation_id, account_id)` | One transaction. Returns the game id, or a **domain reason** — never a database error. |
+| `decline(invitation_id, account_id)` | No reason required (PRD §12.3). |
+| `get_game_for_invitation(invitation_id, account_id)` | The game an accepted invitation created, for a participant only. |
 | `get_for_participant(invitation_id, account_id)` | `None` for a non-participant — the caller turns that into a **not-found**, never a "forbidden", which would itself confirm the invitation exists (ASR-05). |
 
-Still to come: `accept`, `decline`, `cancelInvitation`, `cancelGame`, `expirePending`,
-`cancelPendingBetween`.
+Still to come: `cancelInvitation`, `cancelGame`, `expirePending`, `cancelPendingBetween`.
+
+## Accepting: the transaction (ASR-08, ADR-004)
+
+```
+BEGIN
+  re-read the invitation FOR UPDATE
+  still Pending?   not expired by server UTC?
+  recipient still available?            (M3, a read, inside this transaction)
+  no overlapping confirmed game for EITHER player?
+  insert confirmed_game and two game_participant rows
+  set the invitation Accepted
+  append the outbox record
+COMMIT
+```
+
+Every transition re-reads and re-judges under a row lock, so **the first committed
+action wins** and the loser is told why (ASR-07). Expiry is judged here, at commit —
+never by whenever the sweep last ran (ASR-09).
+
+### Why `game_participant` exists
+
+A `confirmed_game` row carries *both* players, and a PostgreSQL exclusion constraint
+compares **rows**, so keyed there it could only ever protect one of them. One row per
+player lets a single constraint say "no player has two overlapping games". This is the
+gap the agent validation recorded as **AV-05**, closed here.
+
+Double-booking is enforced **twice** (ADR-004):
+
+1. an application check, so the player gets a sentence;
+2. `game_participant_no_overlap`, an exclusion constraint on `(account_id, [start, end))`
+   where `cancelled_at IS NULL` — which is what actually holds under concurrency.
+
+The range is half-open, so **back-to-back games do not conflict**. The insert runs in a
+savepoint, so losing the race to the constraint leaves the transaction usable and the
+player still gets a sentence rather than an `IntegrityError`.
+
+Cancelled participations are outside the constraint, so cancelling a game frees the time
+immediately without any slot being written (G-10).
 
 ## Why M5 does not call M1
 
@@ -65,7 +105,9 @@ queues nothing, and never shows a success message.
 - **Rule 6.** M5 holds no contact data; a participant sees the other party by display
   name only, and nothing becomes visible because an invitation exists (PRD §12.2).
 - **PRD §12.4.** A pending invitation reserves nothing. Only a confirmed game blocks
-  time — which is why there is no `confirmed_game` table yet.
+  time, and it does so through the participant rows, not by consuming a slot (G-10).
+- **PRD §12.3.** An *accepted invitation* and a *confirmed game* are different things.
+  The invitation stays Accepted and the game is its own record.
 
 ## Open items that touch this module
 
