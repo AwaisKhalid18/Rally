@@ -37,3 +37,9 @@ def append_outbox(event_type: str, entity_refs: dict[str, Any]) -> int:
         raise ValueError(f"entity_refs must name {RECIPIENT_KEY!r}")
     appender: OutboxAppender = registry.resolve(OUTBOX_APPENDER)
     return appender.append(event_type, entity_refs)
+
+
+# Added by S7. The outbox carries the event and the ids it refers to — never the
+# invitation's details. M7 composes a short message pointing at the in-app record,
+# which is the source of truth for state (architecture §6.6, ASR-11).
+EVENT_INVITATION_SENT = "invitation.sent"

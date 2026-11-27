@@ -138,3 +138,32 @@ source_modules =
     rally.modules.notification
 forbidden_modules =
     rally.modules.search
+
+[importlinter:contract:invitations-depend-on-three-modules-only]
+name = M5 imports M2, M3 and M6 only, and never M1 or M7 (AGENTS.md section 3, rule 3)
+type = forbidden
+allow_indirect_imports = true
+source_modules =
+    rally.modules.invitations.api
+    rally.modules.invitations.internal
+    rally.modules.invitations.views
+    rally.modules.invitations.models
+forbidden_modules =
+    rally.modules.identity
+    rally.modules.notification
+    rally.modules.search
+    rally.core.web
+
+[importlinter:contract:invitations-use-facades-only]
+name = M5 reaches M2, M3 and M6 through their facades, never their internals (rule 2)
+type = forbidden
+allow_indirect_imports = true
+source_modules =
+    rally.modules.invitations
+forbidden_modules =
+    rally.modules.profiles.internal
+    rally.modules.profiles.models
+    rally.modules.availability.internal
+    rally.modules.availability.models
+    rally.modules.safety.internal
+    rally.modules.safety.models

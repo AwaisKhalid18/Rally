@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     "rally.modules.identity",  # M1
     "rally.modules.profiles",  # M2
     "rally.modules.availability",  # M3
+    "rally.modules.invitations",  # M5
     "rally.modules.safety",  # M6
     # M4 Search is NOT a Django app: it owns no tables, so it has nothing to migrate.
     "rally.modules.notification",  # M7

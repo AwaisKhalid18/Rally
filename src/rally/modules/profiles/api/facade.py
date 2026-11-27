@@ -189,3 +189,16 @@ def seed_profiles(rows: list[dict]) -> int:
 
 def area_codes() -> list[str]:
     return [area.code for area in Area.objects.all()]
+
+
+def is_verified_player(account_id: int) -> bool:
+    """Whether M1 says this account's email is verified.
+
+    M2 relays it because the dependency allowlist does not grant
+    `invitations -> identity`: architecture §6.3 routes the check "M1 via M2", and M2
+    already reads `v_verified_account` for its own completeness rule. No contact data
+    crosses — only the flag (ASR-06).
+    """
+    from rally.modules.profiles.internal.verification import account_is_verified
+
+    return account_is_verified(account_id)

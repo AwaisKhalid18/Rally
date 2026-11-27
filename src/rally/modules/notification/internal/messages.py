@@ -11,7 +11,10 @@ from dataclasses import dataclass
 from django.conf import settings
 from django.urls import reverse
 
-from rally.core.ports.outbox import EVENT_ACCOUNT_VERIFICATION_REQUESTED
+from rally.core.ports.outbox import (
+    EVENT_ACCOUNT_VERIFICATION_REQUESTED,
+    EVENT_INVITATION_SENT,
+)
 from rally.modules.identity.api import facade as identity
 
 
@@ -56,8 +59,35 @@ def _verification_message(recipient_account_id: int) -> Message:
     )
 
 
+def _invitation_sent_message(recipient_account_id: int) -> Message:
+    """A nudge, not a copy of the invitation.
+
+    M7 depends on M1 alone and must not read M5, so the email says that something is
+    waiting and links to it. The in-app record stays the source of truth for what the
+    invitation actually says (architecture 6.6, ASR-11), and no detail of it is copied
+    into the outbox.
+    """
+    address = identity.get_delivery_address(recipient_account_id)
+    if address is None:
+        raise MessageCannotBeComposed("no deliverable account")
+
+    link = _site_url() + reverse("invitations")
+    body = (
+        "Someone has invited you to play badminton on Rally.\n\n"
+        "Open your invitations to see when and where, and to accept or decline:\n\n"
+        f"{link}\n"
+    )
+    return Message(
+        to_address=address,
+        subject="You have a new Rally invitation",
+        body=body,
+        notification_type="invitation.sent",
+    )
+
+
 _COMPOSERS = {
     EVENT_ACCOUNT_VERIFICATION_REQUESTED: _verification_message,
+    EVENT_INVITATION_SENT: _invitation_sent_message,
 }
 
 
