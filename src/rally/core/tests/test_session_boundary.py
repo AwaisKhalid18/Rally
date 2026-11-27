@@ -19,6 +19,8 @@ SAMPLE_ARGS = {
     "availability_delete": {"slot_id": 999999},
     "invitation_new": {"account_id": 999999},
     "invitation_detail": {"invitation_id": 999999},
+    "invitation_accept": {"invitation_id": 999999},
+    "invitation_decline": {"invitation_id": 999999},
 }
 
 

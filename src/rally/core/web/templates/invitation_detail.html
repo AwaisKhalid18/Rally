@@ -14,8 +14,30 @@
   {% endif %}
 </dl>
 
+{% if game %}
+  {% if game.is_cancelled %}
+    <p class="notice">This game was cancelled.</p>
+  {% else %}
+    <p class="notice">The game is confirmed. Neither of you can take another game that
+    overlaps it.</p>
+  {% endif %}
+{% endif %}
+
 {% if invitation.is_pending and invitation.direction == "received" %}
-  <p class="hint">Accepting and declining arrive in the next slice.</p>
+  <div class="actions">
+    <form method="post" action="{% url 'invitation_accept' invitation.invitation_id %}" class="inline">
+      {% csrf_token %}
+      <button type="submit" class="button">Accept</button>
+    </form>
+    <form method="post" action="{% url 'invitation_decline' invitation.invitation_id %}" class="inline">
+      {% csrf_token %}
+      <button type="submit" class="link-button">Decline</button>
+    </form>
+  </div>
+  <p class="hint">Accepting confirms the game straight away. Declining needs no reason,
+  and neither answer can be changed afterwards.</p>
+{% elif invitation.is_pending %}
+  <p class="hint">Waiting for {{ invitation.other_party_name }} to answer.</p>
 {% endif %}
 
 <p class="aside"><a href="{% url 'invitations' %}">Back to your invitations</a></p>

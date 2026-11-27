@@ -562,4 +562,46 @@ def invitation_detail(request, invitation_id: int):
         raise Http404("No such invitation.")
 
     (view,) = _invitation_views([record], viewer_id)
-    return render(request, "invitation_detail.html", {"invitation": view})
+    game = invitations.get_game_for_invitation(invitation_id, viewer_id)
+    return render(request, "invitation_detail.html", {"invitation": view, "game": game})
+
+
+@require_http_methods(["POST"])
+def invitation_accept(request, invitation_id: int):
+    """Accept, creating the confirmed game in one M5 transaction (FR-09, FR-15).
+
+    POST with CSRF: this changes state, so it is never a GET (FE-9). Platform decides
+    nothing — it reports the domain reason M5 gave, never a database error.
+    """
+    from rally.modules.invitations.api import facade as invitations
+
+    viewer_id = request.viewer.account_id
+    result = invitations.accept(invitation_id, viewer_id)
+    if not result.ok:
+        log_operation("invitation.accept", "rejected", account_id=viewer_id, invitation_id=invitation_id)
+        messages.error(request, result.error)
+        return redirect("invitation_detail", invitation_id=invitation_id)
+
+    log_operation(
+        "invitation.accept", "accepted", account_id=viewer_id,
+        invitation_id=invitation_id, game_id=result.game_id,
+    )
+    messages.success(request, "Accepted. The game is confirmed.")
+    return redirect("invitation_detail", invitation_id=invitation_id)
+
+
+@require_http_methods(["POST"])
+def invitation_decline(request, invitation_id: int):
+    """Decline. No reason is asked for (PRD §12.3)."""
+    from rally.modules.invitations.api import facade as invitations
+
+    viewer_id = request.viewer.account_id
+    result = invitations.decline(invitation_id, viewer_id)
+    if not result.ok:
+        log_operation("invitation.decline", "rejected", account_id=viewer_id, invitation_id=invitation_id)
+        messages.error(request, result.error)
+        return redirect("invitation_detail", invitation_id=invitation_id)
+
+    log_operation("invitation.decline", "declined", account_id=viewer_id, invitation_id=invitation_id)
+    messages.success(request, "Declined.")
+    return redirect("invitation_detail", invitation_id=invitation_id)
