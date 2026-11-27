@@ -104,3 +104,24 @@ input:focus-visible, button:focus-visible, a:focus-visible {
   h1 { font-size: 1.875rem; }
   .page { padding-top: var(--space-5); }
 }
+
+/* Notifications (S10). An unread line is marked twice - a rule and a word - so the
+   state does not depend on colour alone. */
+.nav-link { margin-left: auto; color: var(--accent); font-weight: 600; text-decoration: none; }
+.badge {
+  display: inline-block; min-width: 1.4em; padding: 0 0.35em; margin-left: var(--space-1);
+  border-radius: 999px; background: var(--accent); color: var(--accent-ink);
+  font-size: 0.75rem; text-align: center;
+}
+.site-header .nav-link + form { margin-left: var(--space-3); }
+.notifications { list-style: none; margin: 0; padding: 0; }
+.notification {
+  background: var(--paper); border: 1px solid var(--line); border-left: 4px solid var(--line);
+  border-radius: var(--radius); padding: var(--space-3); margin-bottom: var(--space-3);
+}
+.notification--unread { border-left-color: var(--accent); }
+.notification-text { margin: 0 0 var(--space-1); }
+.notification-meta { margin: 0; display: flex; flex-wrap: wrap; gap: var(--space-2); font-size: 0.875rem; color: var(--ink-soft); }
+.unread-flag { font-weight: 700; color: var(--accent); }
+.email-status--failed { color: var(--danger); }
+.read-all { background: none; border: 0; padding: 0; }

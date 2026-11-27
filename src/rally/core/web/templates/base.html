@@ -10,6 +10,8 @@
   <header class="site-header">
     <a class="brand" href="{% url 'home' %}">Rally</a>
     {% if viewer %}
+      <a class="nav-link" href="{% url 'notifications' %}">Notifications{% if unread_notifications %}
+        <span class="badge">{{ unread_notifications }}</span>{% endif %}</a>
       <form class="sign-out" method="post" action="{% url 'sign_out' %}">
         {% csrf_token %}
         <button type="submit" class="link-button">Sign out</button>

@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Your notifications{% endblock %}
+{% block content %}
+<h1>Your notifications</h1>
+
+{% if notifications %}
+  {% if unread_count %}
+    <form method="post" action="{% url 'notifications_read_all' %}" class="read-all">
+      {% csrf_token %}
+      <p class="lead">{{ unread_count }} unread.
+        <button type="submit" class="link-button">Mark all as read</button></p>
+    </form>
+  {% endif %}
+
+  <ul class="notifications">
+    {% for item in notifications %}
+      <li class="notification{% if not item.is_read %} notification--unread{% endif %}">
+        <p class="notification-text">
+          {% if item.link %}<a href="{{ item.link }}">{{ item.text }}</a>
+          {% else %}{{ item.text }}{% endif %}
+        </p>
+        <p class="notification-meta">
+          <span class="when">{{ item.when_text }}</span>
+          {% comment %}
+            FE-5: queued, sent or failed - never "delivered". Rule 13: when the
+            status is absent, the reason stands in its place, never a blank.
+            A one-line hash comment cannot span lines, so this is a comment block.
+          {% endcomment %}
+          <span class="email-status email-status--{{ item.email_status|default:'unknown' }}">{{ item.email_status_text }}</span>
+          {% if not item.is_read %}<span class="unread-flag">Unread</span>{% endif %}
+        </p>
+        {% if not item.is_read %}
+          <form method="post" action="{% url 'notification_read' item.notification_id %}">
+            {% csrf_token %}
+            <button type="submit" class="link-button">Mark as read</button>
+          </form>
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p class="notice">You have no notifications yet. Rally tells you here when someone
+    answers an invitation you sent, or cancels one you received.</p>
+{% endif %}
+
+<p class="aside"><a href="{% url 'invitations' %}">Your invitations</a></p>
+{% endblock %}

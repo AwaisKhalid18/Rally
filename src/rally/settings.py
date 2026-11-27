@@ -72,6 +72,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.messages.context_processors.messages",
                 "rally.core.web.context.viewer",
+                "rally.core.web.context.unread_notifications",
             ],
         },
     },

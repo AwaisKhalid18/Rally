@@ -626,3 +626,55 @@ def invitation_cancel(request, invitation_id: int):
     log_operation("invitation.cancel", "cancelled", account_id=viewer_id, invitation_id=invitation_id)
     messages.success(request, "Invitation cancelled.")
     return redirect("invitation_detail", invitation_id=invitation_id)
+
+
+# --- Notifications (S10) -----------------------------------------------------
+
+
+@require_http_methods(["GET"])
+def notifications(request):
+    """A player's own inbox (FR-12, ASR-11).
+
+    The notifications are already there: the appender committed each one with the
+    accept, decline or cancellation that caused it, so this page is complete whether or
+    not the worker has run and whether or not the provider is up (ASR-12). Only the
+    email status beside each line reflects that.
+    """
+    from rally.modules.notification.api import facade as notification
+
+    from rally.core.shapers.notifications import notification_views
+
+    viewer_id = request.viewer.account_id
+    records = notification.list_for_player(viewer_id)
+    return render(
+        request,
+        "notifications.html",
+        {
+            "notifications": notification_views(records),
+            "unread_count": notification.unread_count(viewer_id),
+        },
+    )
+
+
+@require_http_methods(["POST"])
+def notification_read(request, notification_id: int):
+    """Mark one notification read. POST with CSRF (FE-9).
+
+    A notification that is not this player's is simply not marked, and the player is
+    told nothing about it — the same answer as for one that does not exist (ASR-05).
+    """
+    from rally.modules.notification.api import facade as notification
+
+    viewer_id = request.viewer.account_id
+    notification.mark_read(notification_id, viewer_id)
+    return redirect("notifications")
+
+
+@require_http_methods(["POST"])
+def notifications_read_all(request):
+    from rally.modules.notification.api import facade as notification
+
+    marked = notification.mark_all_read(request.viewer.account_id)
+    if marked:
+        messages.success(request, f"Marked {marked} notification(s) as read.")
+    return redirect("notifications")
