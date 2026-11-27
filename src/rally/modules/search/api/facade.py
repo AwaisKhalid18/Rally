@@ -1,6 +1,6 @@
 """M4 Search & Matching — facade.
 
-Published (AGENTS.md §3): `search()`. `compare()` arrives with S14.
+Published (AGENTS.md §3): `search()` and `compare()`.
 
 M4 owns no tables and writes nothing. It is called by no module — only Platform calls it
 (rule 9). It owns the matching predicate and the ranking, and no other module may
@@ -18,6 +18,7 @@ import datetime as _dt
 from dataclasses import dataclass
 
 from rally.core import clock
+from rally.modules.search.internal import comparison
 from rally.modules.search.internal import criteria as criteria_rules
 from rally.modules.search.internal import query
 
@@ -111,3 +112,34 @@ def search(
         limit=limit,
     )
     return SearchOutcome(results=tuple(found), errors={})
+
+
+# --- Comparison (S14, FR-17, architecture §16.5) -----------------------------
+
+MAX_COMPARED = comparison.MAX_COMPARED
+ComparedPlayer = comparison.ComparedPlayer
+ComparisonOutcome = comparison.ComparisonOutcome
+
+NONE_SELECTED = comparison.NONE_SELECTED
+TOO_MANY = comparison.TOO_MANY
+DUPLICATE_SELECTED = comparison.DUPLICATE_SELECTED
+CANNOT_COMPARE_YOURSELF = comparison.CANNOT_COMPARE_YOURSELF
+
+NOT_FOUND_REASON = comparison.NOT_FOUND_REASON
+NO_SLOTS_REASON = comparison.NO_SLOTS_REASON
+NO_DISTANCE_REASON = comparison.NO_DISTANCE_REASON
+
+
+def compare(viewer_id: int, account_ids, reference_centroid=None) -> ComparisonOutcome:
+    """Compare up to three players side by side (FR-17).
+
+    Stateless: the selection is passed in on every call and nothing is stored, so
+    removing or replacing a player is simply a new call (§16.5). M4 stays read-only and
+    still owns no tables.
+
+    The cap of three is enforced **here**, not by the page. A blocked player and one who
+    does not exist give the same answer, so neither can be told apart (AGENTS.md §5).
+    A player with no future times is still comparable, with the times absent and a
+    reason given (rule 13).
+    """
+    return comparison.compare(viewer_id, account_ids, reference_centroid)
