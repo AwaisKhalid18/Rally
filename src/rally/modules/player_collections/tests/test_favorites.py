@@ -347,31 +347,30 @@ class ReferencesNotCopiesTests(FavoriteCase):
 class FavoritingIsSilentTests(FavoriteCase):
     """AC3 - 'no notification and no outbox record'.
 
-    Asserted here through the row count of M7's tables, which M8's *tests* may read as
-    fixture inspection; M8's production code has no path to them at all (rule 3, and the
-    contract that forbids M8 importing M7).
+    Asserted through M7's facade. M8's production code has no path to M7 at all
+    (rule 3, and the contract that forbids M8 importing it).
     """
 
     def test_adding_writes_no_outbox_record_and_no_notification(self):
-        from rally.modules.notification.internal.models import Notification, Outbox
+        from rally.modules.notification.api import facade as notification
 
-        outbox_before = Outbox.objects.count()
-        notifications_before = Notification.objects.count()
+        notification.dispatch_due()  # drain what registering the players queued
+        before = len(notification.list_for_player(self.other))
 
         collections.add_favorite(self.owner, self.other)
 
-        self.assertEqual(Outbox.objects.count(), outbox_before)
-        self.assertEqual(Notification.objects.count(), notifications_before)
+        self.assertEqual(notification.dispatch_due().claimed, 0)
+        self.assertEqual(len(notification.list_for_player(self.other)), before)
 
     def test_removing_is_silent_too(self):
-        from rally.modules.notification.internal.models import Outbox
+        from rally.modules.notification.api import facade as notification
 
         collections.add_favorite(self.owner, self.other)
-        before = Outbox.objects.count()
+        notification.dispatch_due()
 
         collections.remove_favorite(self.owner, self.other)
 
-        self.assertEqual(Outbox.objects.count(), before)
+        self.assertEqual(notification.dispatch_due().claimed, 0)
 
     def test_the_favorited_player_has_no_way_to_learn_of_it(self):
         """The list is private: nothing M8 publishes answers 'who favorited me?'."""

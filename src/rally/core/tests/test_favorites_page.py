@@ -302,14 +302,14 @@ class FavoritingIsSilentTests(FavoritesPageCase):
         self.assertEqual(len(notification.list_for_player(self.other)), before)
 
     def test_no_outbox_record_is_written(self):
-        from rally.modules.notification.internal.models import Outbox
-
-        before = Outbox.objects.count()
+        """Asserted through M7's facade, not its tables: Platform may reach a module's
+        api and never its internals (rule 2)."""
+        notification.dispatch_due()  # drain what registering the players queued
 
         self.client.post(self.add_url())
         self.client.post(self.remove_url())
 
-        self.assertEqual(Outbox.objects.count(), before)
+        self.assertEqual(notification.dispatch_due().claimed, 0)
 
     def test_the_other_player_cannot_see_they_were_favorited(self):
         self.client.post(self.add_url())
