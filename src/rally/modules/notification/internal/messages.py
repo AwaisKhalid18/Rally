@@ -13,6 +13,7 @@ from django.urls import reverse
 
 from rally.core.ports.outbox import (
     EVENT_ACCOUNT_VERIFICATION_REQUESTED,
+    EVENT_GAME_CANCELLED,
     EVENT_INVITATION_ACCEPTED,
     EVENT_INVITATION_CANCELLED,
     EVENT_INVITATION_DECLINED,
@@ -148,12 +149,38 @@ def _invitation_cancelled_message(recipient_account_id: int) -> Message:
     )
 
 
+def _game_cancelled_message(recipient_account_id: int) -> Message:
+    """Told to the OTHER participant: their confirmed game is off (PRD 12.4).
+
+    A nudge with a link, like every message M7 composes: M7 may not read M5, so it
+    cannot say which game or when. The in-app record does that (ASR-11).
+    """
+    address = identity.get_delivery_address(recipient_account_id)
+    if address is None:
+        raise MessageCannotBeComposed("no deliverable account")
+
+    link = _site_url() + reverse("games")
+    body = (
+        "One of your confirmed Rally games has been cancelled by the other player.\n\n"
+        "Open your games to see which one. The time is free again, so you can look"
+        " for another partner:\n\n"
+        f"{link}\n"
+    )
+    return Message(
+        to_address=address,
+        subject="A Rally game was cancelled",
+        body=body,
+        notification_type=EVENT_GAME_CANCELLED,
+    )
+
+
 _COMPOSERS = {
     EVENT_ACCOUNT_VERIFICATION_REQUESTED: _verification_message,
     EVENT_INVITATION_SENT: _invitation_sent_message,
     EVENT_INVITATION_ACCEPTED: _invitation_accepted_message,
     EVENT_INVITATION_DECLINED: _invitation_declined_message,
     EVENT_INVITATION_CANCELLED: _invitation_cancelled_message,
+    EVENT_GAME_CANCELLED: _game_cancelled_message,
 }
 
 

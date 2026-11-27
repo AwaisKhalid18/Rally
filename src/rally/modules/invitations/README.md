@@ -8,7 +8,7 @@ no-double-booking invariant. The system's only multi-actor stateful workflow.
 | **Owns** | `invitation`, `confirmed_game`, `game_participant` |
 | **Depends on** | M3 Availability, M6 Safety, M2 Profile — **not M1** |
 | **Serves** | FR-08, FR-09, FR-10, FR-11, FR-15; ASR-07 … ASR-11 |
-| **Slice** | S7 send and list · S8 accept, decline, confirmed game · S9 cancel and expiry. The games screen is S11, `cancelPendingBetween` S12. |
+| **Slice** | S7 send and list · S8 accept, decline, confirmed game · S9 cancel and expiry · S11 the games screen and `cancelGame`. `cancelPendingBetween` is S12. |
 
 ## Published interface — today
 
@@ -21,9 +21,12 @@ no-double-booking invariant. The system's only multi-actor stateful workflow.
 | `cancel_invitation(invitation_id, account_id)` | The **sender** withdraws a pending invitation; the recipient is notified. |
 | `expire_pending()` | Worker only. Refreshes stored status; notifies nobody. |
 | `get_game_for_invitation(invitation_id, account_id)` | The game an accepted invitation created, for a participant only. |
+| `list_games_for_player(account_id)` | `(upcoming, finished)`. Both participants see the same game; only *who cancelled it* differs. |
+| `get_game_for_participant(game_id, account_id)` | `None` for anyone else — a not-found, never a "forbidden" (ASR-05). |
+| `cancel_game(game_id, account_id)` | **Either** participant, any time before the start. No reason. The other player is notified. |
 | `get_for_participant(invitation_id, account_id)` | `None` for a non-participant — the caller turns that into a **not-found**, never a "forbidden", which would itself confirm the invitation exists (ASR-05). |
 
-Still to come: `cancelGame` (S11) and `cancelPendingBetween` (S12).
+Still to come: `cancelPendingBetween` (S12, M6's port).
 
 ## The state machine (PRD §12.3)
 
@@ -94,6 +97,29 @@ player still gets a sentence rather than an `IntegrityError`.
 
 Cancelled participations are outside the constraint, so cancelling a game frees the time
 immediately without any slot being written (G-10).
+
+## Cancelling a confirmed game (S11, PRD §12.4)
+
+**Either** participant, at any time **before** the start — the boundary is inclusive, so
+at the start time exactly it is too late. No reason is asked for, and the caller must
+have presented an explicit confirmation step first. A non-participant is told the game
+does not exist (ASR-05).
+
+Cancelling stamps `cancelled_at` on the game and on **both** participant rows, and
+records who did it. It does **not** touch the invitation: that stays Accepted for good.
+Cancelling a game is not un-accepting an invitation (PRD §12.3).
+
+Only the other player is notified. Nobody is told about their own action.
+
+### Why no availability slot is written (G-10)
+
+PRD §12.4 says the slot "is restored for both players", and architecture §8.5 repeats
+it. Nothing ever consumed one: accepting writes participant rows, never a slot. The time
+is free again the instant `cancelled_at` is set, because both the overlap check and the
+exclusion constraint ignore cancelled participations — tested by cancelling a game and
+then successfully accepting an invitation that overlaps it. The outcome the PRD asks for
+is reached with no slot write, which is AGENTS.md §9 **G-10**. The architecture wording
+should be amended to match; recorded as an open item.
 
 ## Why M5 does not call M1
 

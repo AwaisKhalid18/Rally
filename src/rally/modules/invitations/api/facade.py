@@ -1,9 +1,9 @@
 """M5 Invitation & Games — facade.
 
 AGENTS.md §3 lists `send`, `accept`, `decline`, `cancelInvitation`, `cancelGame`,
-`listForPlayer`, `expirePending` and `cancelPendingBetween`. **S7 publishes the send and
-the listing**; acceptance and the confirmed game are S8, cancellation and expiry S9, the
-games screen S11, and `cancelPendingBetween` (M6's port) S12.
+`listForPlayer`, `expirePending` and `cancelPendingBetween`. S7 published the send and
+the listing, S8 acceptance and the confirmed game, S9 cancellation and expiry, **S11 the
+games screen and `cancelGame`**; `cancelPendingBetween` (M6's port) is S12.
 
 M5 exclusively owns invitation state. No other module may change a status, and M5 calls
 no module to do it (ASR-07).
@@ -13,7 +13,7 @@ from __future__ import annotations
 import datetime as _dt
 from dataclasses import dataclass
 
-from rally.modules.invitations.internal import responding, sending
+from rally.modules.invitations.internal import games, responding, sending
 from rally.modules.invitations.internal.models import (
     ConfirmedGame,
     Invitation,
@@ -224,3 +224,37 @@ def expire_pending() -> int:
     (ASR-09, ADR-005). Returns how many rows were refreshed. Notifies nobody.
     """
     return responding.expire_pending()
+
+
+# --- Confirmed games (S11) ---------------------------------------------------
+
+GameDetail = games.GameDetail
+CancelGameResult = games.CancelGameResult
+GAME_NOT_FOUND = games.GAME_NOT_FOUND
+ALREADY_CANCELLED = games.ALREADY_CANCELLED
+ALREADY_STARTED = games.ALREADY_STARTED
+
+
+def list_games_for_player(account_id: int) -> tuple[list[GameDetail], list[GameDetail]]:
+    """`(upcoming, finished)` confirmed games for one player (FR-15, PRD §12.4).
+
+    Both participants see the same game with the same facts. Whether it can still be
+    cancelled is decided here, on the server clock — never by the caller (rule 8).
+    """
+    return games.list_for_player(account_id)
+
+
+def get_game_for_participant(game_id: int, account_id: int) -> GameDetail | None:
+    """One game, for a participant only. `None` for anyone else, which the caller turns
+    into a not-found: a "forbidden" would itself confirm the game exists (ASR-05)."""
+    return games.get_for_participant(game_id, account_id)
+
+
+def cancel_game(game_id: int, account_id: int) -> CancelGameResult:
+    """Either participant cancels, any time before the start time (PRD §12.4).
+
+    No reason is required. Cancelling a *game* is not cancelling an *invitation*: the
+    invitation stays Accepted. The other player is notified; the canceller is not.
+    """
+    result = games.cancel_game(game_id, account_id)
+    return CancelGameResult(game_id=result.game_id, error=result.error)

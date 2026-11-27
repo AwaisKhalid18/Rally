@@ -53,3 +53,8 @@ EVENT_INVITATION_DECLINED = "invitation.declined"
 # a sender withdraws a pending invitation. Expiry notifies nobody — the PRD sends no
 # reminders and no expiry notice.
 EVENT_INVITATION_CANCELLED = "invitation.cancelled"
+
+# Added by S11. Told to the **other participant**: PRD §12.4 resolves that they are
+# informed by in-app notification and email when a confirmed game is cancelled. The
+# player who cancelled is not notified of their own action.
+EVENT_GAME_CANCELLED = "game.cancelled"

@@ -271,3 +271,102 @@ class ExpiryRacesAcceptTests(RaceCase):
         self.assertEqual(
             Invitation.objects.get(pk=invitation_id).status, InvitationStatus.EXPIRED
         )
+
+
+class TwoPlayersCancelOneGameTests(RaceCase):
+    """S11 AC2 - both participants may cancel, so they can race each other."""
+
+    def setUp(self):
+        super().setUp()
+        self.invitation_id = self.send(self.sender, 18, 20)
+        self.game_id = invitations.accept(self.invitation_id, self.recipient).game_id
+
+    def test_exactly_one_cancellation_wins(self):
+        results = run_together(
+            lambda: invitations.cancel_game(self.game_id, self.sender),
+            lambda: invitations.cancel_game(self.game_id, self.recipient),
+        )
+
+        for result in results:
+            self.assertNotIsInstance(result, Exception, f"a thread raised: {result!r}")
+        self.assertEqual(len([r for r in results if r.ok]), 1)
+        self.assertEqual(
+            [r.error for r in results if not r.ok], [invitations.ALREADY_CANCELLED]
+        )
+
+    def test_the_game_is_cancelled_once_and_both_rows_are_stamped(self):
+        run_together(
+            lambda: invitations.cancel_game(self.game_id, self.sender),
+            lambda: invitations.cancel_game(self.game_id, self.recipient),
+        )
+
+        game = ConfirmedGame.objects.get(pk=self.game_id)
+        self.assertTrue(game.is_cancelled)
+        self.assertEqual(
+            GameParticipant.objects.filter(game_id=self.game_id, cancelled_at__isnull=True).count(),
+            0,
+        )
+        self.assertEqual(
+            Invitation.objects.get(pk=self.invitation_id).status, InvitationStatus.ACCEPTED
+        )
+
+
+class CancelRacesAnAcceptOfTheFreedTimeTests(RaceCase):
+    """The time a cancelled game frees, claimed at the same instant (G-10).
+
+    Whichever order they land in, the result must be consistent: never a cancelled game
+    plus an acceptance that was refused because of it, and never two live overlapping
+    games.
+    """
+
+    def test_the_outcome_is_always_consistent(self):
+        first = self.send(self.sender, 18, 20)
+        game_id = invitations.accept(first, self.recipient).game_id
+        second = self.send(self.other_sender, 19, 21)
+
+        results = run_together(
+            lambda: invitations.cancel_game(game_id, self.sender),
+            lambda: invitations.accept(second, self.recipient),
+        )
+
+        for result in results:
+            self.assertNotIsInstance(result, Exception, f"a thread raised: {result!r}")
+        cancelled, accepted = results
+        self.assertTrue(cancelled.ok, cancelled.error)
+        if accepted.ok:
+            # It ran after the cancellation committed: the freed time was taken.
+            live = GameParticipant.objects.filter(
+                account_id=self.recipient, cancelled_at__isnull=True
+            )
+            self.assertEqual(live.count(), 1)
+        else:
+            self.assertEqual(accepted.error, invitations.OVERLAPPING_GAME)
+
+    def test_no_two_live_participations_ever_overlap(self):
+        """The property QA-03 states, asserted over the table whatever the order."""
+        first = self.send(self.sender, 18, 20)
+        game_id = invitations.accept(first, self.recipient).game_id
+        second = self.send(self.other_sender, 19, 21)
+
+        run_together(
+            lambda: invitations.cancel_game(game_id, self.sender),
+            lambda: invitations.accept(second, self.recipient),
+        )
+
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT count(*)
+                FROM game_participant a
+                JOIN game_participant b
+                  ON a.account_id = b.account_id
+                 AND a.id < b.id
+                 AND a.cancelled_at IS NULL
+                 AND b.cancelled_at IS NULL
+                 AND a.starts_at < b.ends_at
+                 AND a.ends_at   > b.starts_at
+                """
+            )
+            (overlaps,) = cursor.fetchone()
+
+        self.assertEqual(overlaps, 0)
