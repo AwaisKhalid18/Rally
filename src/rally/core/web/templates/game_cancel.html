@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Cancel this game?{% endblock %}
+{% block content %}
+<h1>Cancel this game?</h1>
+
+<dl class="invitation-facts">
+  <dt>With</dt><dd>{{ game.other_party_name }}</dd>
+  <dt>When</dt><dd>{{ game.when_text }}</dd>
+  <dt>Venue</dt><dd>{{ game.venue }}</dd>
+</dl>
+
+<p class="lead">{{ game.other_party_name }} will be told that the game is off. You do not
+have to give a reason. That time becomes free for both of you, and this cannot be undone
+— to play again you would send a new invitation.</p>
+
+{% if game.can_cancel %}
+  <div class="actions">
+    <form method="post" action="{% url 'game_cancel' game.game_id %}" class="inline">
+      {% csrf_token %}
+      <button type="submit" class="button">Yes, cancel the game</button>
+    </form>
+    <a href="{% url 'games' %}">No, keep it</a>
+  </div>
+{% else %}
+  <p class="notice">This game can no longer be cancelled.</p>
+  <p class="aside"><a href="{% url 'games' %}">Back to your games</a></p>
+{% endif %}
+{% endblock %}

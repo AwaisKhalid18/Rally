@@ -27,6 +27,7 @@ _WORDING = {
     "invitation.accepted": "An invitation you sent was accepted. You have a confirmed game.",
     "invitation.declined": "An invitation you sent was declined.",
     "invitation.cancelled": "An invitation you received was cancelled by the player who sent it.",
+    "game.cancelled": "A confirmed game was cancelled by the other player. That time is free again.",
 }
 
 # Rule 13 again: an event this build has no sentence for is still shown, honestly.
@@ -53,6 +54,14 @@ class NotificationView:
 
 
 def _link(record: NotificationRecord) -> str:
+    """Where this notification leads.
+
+    Keyed on the **event type**, not on which ids happen to be present: an acceptance
+    and a game cancellation both carry a game id and an invitation id, and they lead to
+    different pages.
+    """
+    if record.notification_type == "game.cancelled":
+        return reverse("games")
     if record.invitation_id is not None:
         return reverse("invitation_detail", kwargs={"invitation_id": record.invitation_id})
     return ""

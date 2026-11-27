@@ -678,3 +678,73 @@ def notifications_read_all(request):
     if marked:
         messages.success(request, f"Marked {marked} notification(s) as read.")
     return redirect("notifications")
+
+
+# --- Confirmed games (S11) ---------------------------------------------------
+
+
+def _game_views(details, _viewer_id):
+    """Resolve each counterpart's display name through M2, read-only (rule 14)."""
+    from rally.core.shapers.games import game_view
+    from rally.modules.profiles.api import facade as profiles
+
+    views = []
+    for detail in details:
+        profile = profiles.get_public_profile(detail.other_party_account_id)
+        views.append(game_view(detail, profile.display_name if profile else None))
+    return views
+
+
+@require_http_methods(["GET"])
+def games(request):
+    """A player's confirmed games (FR-15, PRD §12.4).
+
+    Both participants see the same game. Whether it can still be cancelled is M5's
+    decision, already made on the server clock — this page only shows it (FE-4).
+    """
+    from rally.modules.invitations.api import facade as invitations
+
+    viewer_id = request.viewer.account_id
+    upcoming, finished = invitations.list_games_for_player(viewer_id)
+    return render(
+        request,
+        "games.html",
+        {
+            "upcoming": _game_views(upcoming, viewer_id),
+            "finished": _game_views(finished, viewer_id),
+        },
+    )
+
+
+@require_http_methods(["GET", "POST"])
+def game_cancel(request, game_id: int):
+    """Cancel a confirmed game — GET asks, POST does it.
+
+    PRD §12.4 requires an **explicit confirmation step** and no reason, so the GET
+    renders a confirmation page and changes nothing; only the POST, with its CSRF
+    token, cancels (FE-9). A non-participant gets a not-found either way (ASR-05).
+    """
+    from rally.modules.invitations.api import facade as invitations
+
+    viewer_id = request.viewer.account_id
+    detail = invitations.get_game_for_participant(game_id, viewer_id)
+    if detail is None:
+        raise Http404("No such game.")
+
+    (view,) = _game_views([detail], viewer_id)
+    if request.method == "GET":
+        return render(request, "game_cancel.html", {"game": view})
+
+    result = invitations.cancel_game(game_id, viewer_id)
+    if not result.ok:
+        log_operation("game.cancel", "rejected", account_id=viewer_id, game_id=game_id)
+        messages.error(request, result.error)
+        return redirect("games")
+
+    # Only after M5's transaction committed (FE-5).
+    messages.success(
+        request,
+        "The game is cancelled and the other player has been told. That time is free "
+        "again, so you can look for another partner.",
+    )
+    return redirect("games")

@@ -19,7 +19,8 @@
     <p class="notice">This game was cancelled.</p>
   {% else %}
     <p class="notice">The game is confirmed. Neither of you can take another game that
-    overlaps it.</p>
+    overlaps it. <a href="{% url 'games' %}">See your games</a> to cancel it if you
+    cannot make it.</p>
   {% endif %}
 {% endif %}
 

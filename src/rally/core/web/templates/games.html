@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Your games{% endblock %}
+{% block content %}
+<h1>Your confirmed games</h1>
+
+<h2>Upcoming</h2>
+{% if upcoming %}
+  <ul class="games">
+    {% for game in upcoming %}
+      <li class="game">
+        <p class="game-who">With {{ game.other_party_name }}</p>
+        <p class="game-meta">
+          <span class="when">{{ game.when_text }}</span>
+          <span class="venue">{{ game.venue }}</span>
+          <span class="status status--{{ game.status }}">{{ game.status_label }}</span>
+        </p>
+        {% if game.can_cancel %}
+          <p><a href="{% url 'game_cancel' game.game_id %}">Cancel this game</a></p>
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p class="notice">You have no upcoming games. A game is confirmed when someone accepts
+  your invitation, or when you accept theirs.</p>
+{% endif %}
+
+<h2>Finished and cancelled</h2>
+{% if finished %}
+  <ul class="games">
+    {% for game in finished %}
+      <li class="game game--{{ game.status }}">
+        <p class="game-who">With {{ game.other_party_name }}</p>
+        <p class="game-meta">
+          <span class="when">{{ game.when_text }}</span>
+          <span class="venue">{{ game.venue }}</span>
+          <span class="status status--{{ game.status }}">{{ game.status_label }}</span>
+        </p>
+        {% if game.cancelled_note %}<p class="hint">{{ game.cancelled_note }}</p>{% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p class="notice">Nothing here yet.</p>
+{% endif %}
+
+<p class="aside"><a href="{% url 'invitations' %}">Your invitations</a> ·
+  <a href="{% url 'search' %}">Find a player</a></p>
+{% endblock %}
