@@ -1,0 +1,15 @@
+{% if rows %}
+  <ul class="invitations">
+    {% for invitation in rows %}
+      <li class="invitation">
+        <a href="{% url 'invitation_detail' invitation.invitation_id %}">
+          {{ invitation.other_party_name }}</a>
+        <span class="status status--{{ invitation.status }}">{{ invitation.status_label }}</span>
+        <span class="when">{{ invitation.when_text }}</span>
+        <span class="venue">{{ invitation.venue }}</span>
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p class="notice">{{ empty_reason }}</p>
+{% endif %}

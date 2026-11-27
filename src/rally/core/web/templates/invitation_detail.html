@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Invitation{% endblock %}
+{% block content %}
+<h1>Invitation</h1>
+
+<dl class="invitation-facts">
+  <dt>{% if invitation.direction == "sent" %}To{% else %}From{% endif %}</dt>
+  <dd>{{ invitation.other_party_name }}</dd>
+  <dt>When</dt><dd>{{ invitation.when_text }}</dd>
+  <dt>Venue</dt><dd>{{ invitation.venue }}</dd>
+  <dt>Status</dt><dd class="status status--{{ invitation.status }}">{{ invitation.status_label }}</dd>
+  {% if invitation.is_pending %}
+    <dt>Expires</dt><dd>{{ invitation.expires_text }}</dd>
+  {% endif %}
+</dl>
+
+{% if invitation.is_pending and invitation.direction == "received" %}
+  <p class="hint">Accepting and declining arrive in the next slice.</p>
+{% endif %}
+
+<p class="aside"><a href="{% url 'invitations' %}">Back to your invitations</a></p>
+{% endblock %}

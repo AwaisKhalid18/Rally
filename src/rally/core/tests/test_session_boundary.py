@@ -17,6 +17,8 @@ SAMPLE_ARGS = {
     "player_profile": {"account_id": 999999},
     "availability_edit": {"slot_id": 999999},
     "availability_delete": {"slot_id": 999999},
+    "invitation_new": {"account_id": 999999},
+    "invitation_detail": {"invitation_id": 999999},
 }
 
 

@@ -78,7 +78,7 @@ times overlap yours, nearest first.</p>
             {% for slot in player.slots %}{{ slot.summary }}{% if not forloop.last %}; {% endif %}{% endfor %}
           </p>
           <p class="result-actions">
-            <a class="button" href="{% url 'player_profile' player.account_id %}">Invite</a>
+            <a class="button" href="{% url 'invitation_new' player.account_id %}">Invite</a>
           </p>
         </li>
       {% endfor %}

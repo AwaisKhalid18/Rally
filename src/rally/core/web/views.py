@@ -445,3 +445,121 @@ def search(request):
         results=len(outcome.results),
     )
     return page(results=result_views(outcome.results), searched=True)
+
+
+def _invitation_views(records, viewer_id):
+    """Resolve each counterpart's display name through M2, read-only (rule 14)."""
+    from rally.core.shapers.invitations import invitation_view
+    from rally.modules.profiles.api import facade as profiles
+
+    views = []
+    for record in records:
+        other_id = record.other_party(viewer_id)
+        profile = profiles.get_public_profile(other_id)
+        views.append(
+            invitation_view(record, viewer_id, profile.display_name if profile else None)
+        )
+    return views
+
+
+@require_http_methods(["GET", "POST"])
+def invitation_new(request, account_id: int):
+    """Send an invitation to one player (FR-08, PRD §12.3).
+
+    Reached from a search result or a player's profile. Every rule about whether the
+    invitation may exist belongs to M5; this view collects the fields and reports what
+    M5 decided (rule 14).
+    """
+    from rally.core.localtime import LocalTimeInvalid, parse_local
+    from rally.modules.invitations.api import facade as invitations
+    from rally.modules.profiles.api import facade as profiles
+
+    sender_id = request.viewer.account_id
+    recipient = profiles.get_public_profile(account_id)
+    if recipient is None or account_id == sender_id:
+        raise Http404(invitations.RECIPIENT_UNKNOWN)
+
+    def page(values, errors=None, status=200):
+        return render(
+            request,
+            "invitation_new.html",
+            {"recipient": recipient, "values": values, "errors": errors or {}},
+            status=status,
+        )
+
+    if request.method == "GET":
+        return page({"date": "", "start": "", "end": "", "venue": ""})
+
+    values = {
+        "date": request.POST.get("date", ""),
+        "start": request.POST.get("start", ""),
+        "end": request.POST.get("end", ""),
+        "venue": request.POST.get("venue", ""),
+    }
+
+    starts_at = ends_at = None
+    errors: dict[str, str] = {}
+    if not values["date"] or not values["start"] or not values["end"]:
+        errors["date"] = "Enter the date and both times."
+    else:
+        try:
+            starts_at = parse_local(values["date"], values["start"])
+            ends_at = parse_local(values["date"], values["end"])
+        except LocalTimeInvalid:
+            errors["date"] = "Enter a date as YYYY-MM-DD and times as HH:MM."
+
+    if errors:
+        return page(values, errors, status=400)
+
+    result = invitations.send(
+        sender_account_id=sender_id,
+        recipient_account_id=account_id,
+        starts_at=starts_at,
+        ends_at=ends_at,
+        venue=values["venue"],
+    )
+    if not result.ok:
+        log_operation("invitation.send", "rejected", account_id=sender_id)
+        return page(values, result.errors, status=400)
+
+    # Only now, after M5's transaction committed, is success reported (FR-08, AC4).
+    log_operation(
+        "invitation.send", "sent", account_id=sender_id, invitation_id=result.invitation_id
+    )
+    messages.success(request, "Your invitation is sent.")
+    return redirect("invitations")
+
+
+@require_http_methods(["GET"])
+def invitations_list(request):
+    """Sent and received invitations with their status (FR-10, ASR-05)."""
+    from rally.modules.invitations.api import facade as invitations
+
+    viewer_id = request.viewer.account_id
+    sent, received = invitations.list_for_player(viewer_id)
+    return render(
+        request,
+        "invitations.html",
+        {
+            "sent": _invitation_views(sent, viewer_id),
+            "received": _invitation_views(received, viewer_id),
+        },
+    )
+
+
+@require_http_methods(["GET"])
+def invitation_detail(request, invitation_id: int):
+    """One invitation — for a participant only.
+
+    A non-participant gets a not-found, never a "forbidden": that would itself confirm
+    the invitation exists (AC5, ASR-05).
+    """
+    from rally.modules.invitations.api import facade as invitations
+
+    viewer_id = request.viewer.account_id
+    record = invitations.get_for_participant(invitation_id, viewer_id)
+    if record is None:
+        raise Http404("No such invitation.")
+
+    (view,) = _invitation_views([record], viewer_id)
+    return render(request, "invitation_detail.html", {"invitation": view})

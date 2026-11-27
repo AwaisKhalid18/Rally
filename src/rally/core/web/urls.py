@@ -19,4 +19,7 @@ urlpatterns = [
     path("availability/<int:slot_id>/", views.availability_edit, name="availability_edit"),
     path("availability/<int:slot_id>/delete/", views.availability_delete, name="availability_delete"),
     path("search/", views.search, name="search"),
+    path("players/<int:account_id>/invite/", views.invitation_new, name="invitation_new"),
+    path("invitations/", views.invitations_list, name="invitations"),
+    path("invitations/<int:invitation_id>/", views.invitation_detail, name="invitation_detail"),
 ]

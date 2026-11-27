@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Your invitations{% endblock %}
+{% block content %}
+<h1>Your invitations</h1>
+
+<h2>Received</h2>
+{% include "_invitation_rows.html" with rows=received empty_reason="No one has invited you yet." %}
+
+<h2>Sent</h2>
+{% include "_invitation_rows.html" with rows=sent empty_reason="You have not sent an invitation yet." %}
+
+<p class="aside"><a href="{% url 'search' %}">Find a player to invite</a></p>
+{% endblock %}

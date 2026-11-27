@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Invite {{ recipient.display_name }}{% endblock %}
+{% block content %}
+<h1>Invite {{ recipient.display_name }}</h1>
+<p class="lead">{{ recipient.playing_level_label }} · {{ recipient.area_name }}</p>
+
+<form method="post" action="{% url 'invitation_new' recipient.account_id %}" novalidate>
+  {% csrf_token %}
+  {% if errors.form %}<p class="error">{{ errors.form }}</p>{% endif %}
+
+  <div class="field">
+    <label for="id_date">Date</label>
+    <input type="date" name="date" id="id_date" value="{{ values.date }}">
+    {% if errors.date %}<p class="error">{{ errors.date }}</p>{% endif %}
+  </div>
+  <div class="field">
+    <label for="id_start">From</label>
+    <input type="time" name="start" id="id_start" value="{{ values.start }}">
+  </div>
+  <div class="field">
+    <label for="id_end">Until</label>
+    <input type="time" name="end" id="id_end" value="{{ values.end }}">
+    <p class="hint">The time must sit inside one of their listed playing times.</p>
+    {% if errors.end %}<p class="error">{{ errors.end }}</p>{% endif %}
+  </div>
+  <div class="field">
+    <label for="id_venue">Venue</label>
+    <input type="text" name="venue" id="id_venue" maxlength="100" value="{{ values.venue }}">
+    <p class="hint">Where you would like to play. Rally does not book courts.</p>
+    {% if errors.venue %}<p class="error">{{ errors.venue }}</p>{% endif %}
+  </div>
+
+  <button type="submit" class="button">Send invitation</button>
+</form>
+
+<p class="aside">The invitation expires 24 hours after you send it, or when the game
+would start, whichever comes first.</p>
+{% endblock %}
