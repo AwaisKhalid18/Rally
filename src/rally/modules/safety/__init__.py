@@ -6,8 +6,8 @@ Never : applies a block itself. It **publishes** the rule; M4 and M5 apply it. A
         the other way would invert the dependency and create a cycle (architecture §5.1).
 Depends on: nothing.
 
-**Slice S5 builds a stub**: the `block` table and the published view `v_block_pairs`, so
-M4's search predicate can honour blocking from its first line. Blocking and reporting as
-a feature — the UI, the unblock list, the `report` table and the cancellation cascade
-through the `PendingInvitationCanceller` port — arrive in S12.
+S5 built a stub: the `block` table and the published view `v_block_pairs`, so M4's
+search predicate could honour blocking from its first line. **S12 is the feature**:
+the screens, the unblock list, the `report` table, and the cancellation cascade that
+crosses back to M5 through the `PendingInvitationCanceller` port M6 declares.
 """

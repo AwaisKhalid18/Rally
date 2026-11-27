@@ -370,3 +370,69 @@ class CancelRacesAnAcceptOfTheFreedTimeTests(RaceCase):
             (overlaps,) = cursor.fetchone()
 
         self.assertEqual(overlaps, 0)
+
+
+class AcceptRacesABlockTests(RaceCase):
+    """S12 AC5 - the acceptance and the block cascade meeting on one invitation.
+
+    M6 opens the transaction, M5's cascade runs inside it through the port, and the
+    acceptance holds the same row. Whichever commits first, the pair must never end up
+    with a block and a live invitation, or with a cancelled invitation that produced a
+    game (ASR-07, ASR-10).
+    """
+
+    def test_exactly_one_of_them_takes_effect(self):
+        from rally.modules.safety.api import facade as safety
+
+        invitation_id = self.send(self.sender, 18, 20)
+
+        results = run_together(
+            lambda: invitations.accept(invitation_id, self.recipient),
+            lambda: safety.block(self.recipient, self.sender),
+        )
+
+        accepted, blocked = results
+        for result in results:
+            self.assertNotIsInstance(result, Exception, f"a thread raised: {result!r}")
+        # The block itself always succeeds: it is the player's own safety action and
+        # nothing may refuse it.
+        self.assertTrue(blocked.ok, blocked.error)
+
+        status = Invitation.objects.get(pk=invitation_id).status
+        if accepted.ok:
+            # The acceptance committed first; the cascade then found nothing Pending.
+            self.assertEqual(status, InvitationStatus.ACCEPTED)
+            self.assertEqual(blocked.cancelled_invitation_ids, ())
+            self.assertEqual(ConfirmedGame.objects.count(), 1)
+        else:
+            self.assertEqual(accepted.error, invitations.NO_LONGER_PENDING)
+            self.assertEqual(status, InvitationStatus.CANCELLED)
+            self.assertEqual(blocked.cancelled_invitation_ids, (invitation_id,))
+            self.assertEqual(ConfirmedGame.objects.count(), 0)
+
+    def test_a_cancelled_invitation_never_leaves_a_game_behind(self):
+        from rally.modules.safety.api import facade as safety
+
+        invitation_id = self.send(self.sender, 18, 20)
+
+        run_together(
+            lambda: invitations.accept(invitation_id, self.recipient),
+            lambda: safety.block(self.recipient, self.sender),
+        )
+
+        status = Invitation.objects.get(pk=invitation_id).status
+        expected_games = 1 if status == InvitationStatus.ACCEPTED else 0
+        self.assertEqual(ConfirmedGame.objects.count(), expected_games)
+        self.assertEqual(GameParticipant.objects.count(), expected_games * 2)
+
+    def test_the_block_is_in_place_either_way(self):
+        from rally.modules.safety.api import facade as safety
+
+        invitation_id = self.send(self.sender, 18, 20)
+
+        run_together(
+            lambda: invitations.accept(invitation_id, self.recipient),
+            lambda: safety.block(self.recipient, self.sender),
+        )
+
+        self.assertTrue(safety.is_blocked_between(self.sender, self.recipient))

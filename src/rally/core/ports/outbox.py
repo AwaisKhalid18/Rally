@@ -58,3 +58,12 @@ EVENT_INVITATION_CANCELLED = "invitation.cancelled"
 # informed by in-app notification and email when a confirmed game is cancelled. The
 # player who cancelled is not notified of their own action.
 EVENT_GAME_CANCELLED = "game.cancelled"
+
+# Added by S12. The block cascade cancels the pending invitations between a pair, and
+# the player who did **not** block is told that an invitation is gone. The wording M7
+# and the shaper give it never says a block happened: the PRD does not resolve whether
+# the blocked player learns of the block, and disclosing it would make blocking unsafe
+# to use. A separate event type exists precisely so the wording can stay neutral -
+# `invitation.cancelled` says "the player who sent it withdrew", which would be false
+# here and would point straight at the block.
+EVENT_INVITATION_CANCELLED_BY_BLOCK = "invitation.cancelled_by_block"

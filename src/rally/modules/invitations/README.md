@@ -8,7 +8,7 @@ no-double-booking invariant. The system's only multi-actor stateful workflow.
 | **Owns** | `invitation`, `confirmed_game`, `game_participant` |
 | **Depends on** | M3 Availability, M6 Safety, M2 Profile — **not M1** |
 | **Serves** | FR-08, FR-09, FR-10, FR-11, FR-15; ASR-07 … ASR-11 |
-| **Slice** | S7 send and list · S8 accept, decline, confirmed game · S9 cancel and expiry · S11 the games screen and `cancelGame`. `cancelPendingBetween` is S12. |
+| **Slice** | S7 send and list · S8 accept, decline, confirmed game · S9 cancel and expiry · S11 the games screen and `cancelGame` · S12 `cancelPendingBetween`, M6's port. |
 
 ## Published interface — today
 
@@ -26,7 +26,12 @@ no-double-booking invariant. The system's only multi-actor stateful workflow.
 | `cancel_game(game_id, account_id)` | **Either** participant, any time before the start. No reason. The other player is notified. |
 | `get_for_participant(invitation_id, account_id)` | `None` for a non-participant — the caller turns that into a **not-found**, never a "forbidden", which would itself confirm the invitation exists (ASR-05). |
 
-Still to come: `cancelPendingBetween` (S12, M6's port).
+M5 also implements M6's `PendingInvitationCanceller` port
+(`api/pending_canceller.py`): `cancel_pending_between(a, b)` cancels every Pending
+invitation between a pair, either direction, and returns their ids. It runs **inside
+M6's transaction**, so it opens none of its own (rule 4) and notifies nobody — M6
+appends the records, because M6 knows a block caused it and can word it without
+disclosing the block. Confirmed games are untouched (PRD §12.5).
 
 ## The state machine (PRD §12.3)
 

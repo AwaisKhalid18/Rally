@@ -120,20 +120,20 @@ class BlockingTests(MatchingCase):
 
     def test_a_player_the_searcher_blocked_does_not_appear(self):
         other = self.make_player("blocked", "isb-f7")
-        safety.block_for_test(self.searcher_id, other)
+        safety.block(self.searcher_id, other)
 
         self.assertEqual(self.run_search().results, ())
 
     def test_a_player_who_blocked_the_searcher_does_not_appear(self):
         other = self.make_player("blocker", "isb-f7")
-        safety.block_for_test(other, self.searcher_id)
+        safety.block(other, self.searcher_id)
 
         self.assertEqual(self.run_search().results, ())
 
     def test_a_block_between_two_other_players_changes_nothing(self):
         first = self.make_player("first", "isb-f7")
         second = self.make_player("second", "isb-f7")
-        safety.block_for_test(first, second)
+        safety.block(first, second)
 
         self.assertEqual(len(self.run_search().results), 2)
 

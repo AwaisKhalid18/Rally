@@ -127,12 +127,12 @@ class RefusedSendTests(SendCase):
         )
 
     def test_a_block_by_the_sender_refuses_the_send(self):
-        safety.block_for_test(self.sender, self.recipient)
+        safety.block(self.sender, self.recipient)
         self.assertEqual(self.send().errors, {"form": invitations.BLOCKED})
 
     def test_a_block_by_the_recipient_refuses_the_send(self):
         """ASR-10 - the rule applies in both directions."""
-        safety.block_for_test(self.recipient, self.sender)
+        safety.block(self.recipient, self.sender)
         self.assertEqual(self.send().errors, {"form": invitations.BLOCKED})
 
     def test_an_end_before_the_start_is_refused(self):

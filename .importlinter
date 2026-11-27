@@ -2,7 +2,7 @@
 #
 # A contract names only packages that exist: import-linter aborts the whole run on an
 # unknown module, so the slice that creates a module adds it to the lists below.
-# Built so far: rally.core (P), rally.modules.identity (M1), rally.modules.notification (M7).
+# Built so far: every module except M8 Player Collections (rally.modules.player_collections).
 #
 # Run with:  lint-imports
 
@@ -24,6 +24,8 @@ forbidden_modules =
     rally.modules.identity.models
     rally.modules.notification.internal
     rally.modules.notification.models
+    rally.modules.safety.internal
+    rally.modules.safety.models
 
 [importlinter:contract:modules-do-not-import-the-web-layer]
 name = A capability module never imports Platform's web layer
@@ -39,6 +41,8 @@ name = No capability module imports the project settings or the root URL conf
 type = forbidden
 source_modules =
     rally.modules.identity
+    rally.modules.safety
+    rally.modules.invitations
 forbidden_modules =
     rally.settings
     rally.urls
@@ -54,6 +58,7 @@ type = forbidden
 allow_indirect_imports = true
 source_modules =
     rally.modules.identity
+    rally.modules.safety
 forbidden_modules =
     rally.modules.notification
 
@@ -97,8 +102,16 @@ forbidden_modules =
     rally.core.web
 
 [importlinter:contract:safety-depends-on-nothing]
-name = M6 Safety depends on no other capability module (AGENTS.md section 3)
+name = M6 Safety depends on no other capability module, M5 least of all (AGENTS.md section 3, rule 15)
 type = forbidden
+# This is the contract plan.md S12 AC5 asks for. `rally.modules.invitations` is in the
+# forbidden list because the block cascade is the one place tempted to import it: M6
+# declares the `PendingInvitationCanceller` port, M5 implements it, and Platform binds
+# them at startup. Indirect chains are allowed for exactly that reason - M6 -> port ->
+# wiring registry -> M5 is the port doing its job (ADR-007 R-02); forbidding it would
+# forbid having a port at all. What must never appear is a direct import, and that is
+# what this checks.
+allow_indirect_imports = true
 source_modules =
     rally.modules.safety.api
     rally.modules.safety.internal
@@ -109,6 +122,7 @@ forbidden_modules =
     rally.modules.profiles
     rally.modules.availability
     rally.modules.search
+    rally.modules.invitations
     rally.modules.notification
     rally.core.web
 

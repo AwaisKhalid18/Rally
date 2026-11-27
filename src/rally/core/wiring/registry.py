@@ -3,11 +3,14 @@
 A call that would invert a dependency goes through a port declared by the called-from
 module (or Platform) and registered here at startup (AGENTS.md rule 15).
 
-Registered in slice S2:
-  `OutboxAppender`  declared by Platform, implemented by M7 (rule 3, ADR-005).
+Registered:
+  `OutboxAppender`                (S2)   declared by Platform, implemented by M7
+                                         (rule 3, ADR-005).
+  `PendingInvitationCanceller`    (S12)  declared by M6, implemented by M5
+                                         (rule 15, ADR-007 R-02).
 
-Still to come:
-  `PendingInvitationCanceller`  declared by M6, implemented by M5, arriving with S12.
+Both exist so that a call can cross a dependency edge the wrong way at run time without
+any module importing the other. Nothing else may be registered without an ADR.
 """
 from __future__ import annotations
 
@@ -38,6 +41,9 @@ def wire() -> None:
 
     Platform imports a module's `api` package here and nowhere deeper (rule 2).
     """
+    from rally.modules.invitations.api import pending_canceller
     from rally.modules.notification.api import outbox_appender
+    from rally.modules.safety.api.ports import PENDING_INVITATION_CANCELLER
 
     register("OutboxAppender", outbox_appender.appender())
+    register(PENDING_INVITATION_CANCELLER, pending_canceller.canceller())

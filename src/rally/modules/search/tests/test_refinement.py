@@ -185,7 +185,7 @@ class FiltersCombineTests(RefinementCase):
         from rally.modules.safety.api import facade as safety
 
         other = self.make_player("blocked", "km3", level="advanced")
-        safety.block_for_test(self.searcher_id, other)
+        safety.block(self.searcher_id, other)
 
         self.assertEqual(self.run_search(playing_level="advanced").results, ())
 
