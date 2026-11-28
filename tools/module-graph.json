@@ -16,7 +16,8 @@
     {"id": "invitations",  "name": "M5 Invitation and Games","package": "rally/modules/invitations",       "owns": ["invitation", "confirmed_game", "game_participant"], "built": true},
     {"id": "safety",       "name": "M6 Safety",             "package": "rally/modules/safety",             "owns": ["block", "report"],                                  "built": true},
     {"id": "notification", "name": "M7 Notification",       "package": "rally/modules/notification",       "owns": ["outbox", "notification"],                           "built": true},
-    {"id": "collections",  "name": "M8 Player Collections", "package": "rally/modules/player_collections", "owns": ["favorite", "saved_search"],                         "built": true}
+    {"id": "collections",  "name": "M8 Player Collections", "package": "rally/modules/player_collections", "owns": ["favorite", "saved_search"],                         "built": true},
+    {"id": "messaging",    "name": "M9 Messaging",            "package": "rally/modules/messaging",          "owns": ["conversation", "message"],                          "built": true}
   ],
   "edges": [
     {"from": "search",       "to": "profile",      "kind": "read_view"},
@@ -29,11 +30,13 @@
     {"from": "invitations",  "to": "safety",       "kind": "facade"},
     {"from": "invitations",  "to": "profile",      "kind": "facade"},
     {"from": "profile",      "to": "identity",     "kind": "read_view"},
-    {"from": "notification", "to": "identity",     "kind": "facade"}
+    {"from": "notification", "to": "identity",     "kind": "facade"},
+    {"from": "messaging",    "to": "invitations",  "kind": "facade"},
+    {"from": "messaging",    "to": "safety",       "kind": "facade"}
   ],
   "constraints": {
     "no_outgoing": ["identity", "safety"],
-    "no_incoming": ["search", "notification", "collections"],
+    "no_incoming": ["search", "notification", "collections", "messaging"],
     "owns_no_tables": ["search"],
     "read_view_consumers": ["search", "collections", "profile"]
   }

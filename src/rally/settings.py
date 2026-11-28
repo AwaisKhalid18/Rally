@@ -50,6 +50,10 @@ INSTALLED_APPS = [
     # M8 Player Collections. The folder is `player_collections`: a top-level package
     # called `collections` would shadow the standard library (§3.1).
     "rally.modules.player_collections",  # M8
+    "rally.modules.messaging",  # M9
+    # M9 is NOT in the Final Validated PRD: PRD §12.5 records in-app chat as
+    # formally excluded. It was added on an explicit instruction from the project
+    # lead; the PRD and an ADR still need to record that decision.
 ]
 
 MIDDLEWARE = [
@@ -76,6 +80,7 @@ TEMPLATES = [
                 "django.contrib.messages.context_processors.messages",
                 "rally.core.web.context.viewer",
                 "rally.core.web.context.unread_notifications",
+                "rally.core.web.context.unread_messages",
             ],
         },
     },

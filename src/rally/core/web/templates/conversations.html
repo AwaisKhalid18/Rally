@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Your messages{% endblock %}
+{% block content %}
+<h1>Your messages</h1>
+
+{% if conversations %}
+  <p class="lead">You can message the players you have a confirmed game with.</p>
+
+  <ul class="conversations">
+    {% for thread in conversations %}
+      <li class="conversation{% if thread.has_unread %} conversation--unread{% endif %}">
+        <a class="conversation-link" href="{% url 'conversation' thread.conversation_id %}">
+          <span class="conversation-who">{{ thread.other_party_name }}</span>
+          <span class="conversation-preview">{{ thread.preview }}</span>
+        </a>
+        <span class="conversation-meta">
+          <span class="when">{{ thread.when_text }}</span>
+          {% if thread.has_unread %}
+            <span class="badge">{{ thread.unread_count }}</span>
+            <span class="unread-flag">Unread</span>
+          {% endif %}
+        </span>
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p class="notice">You have no messages. Once you and another player have a confirmed
+  game, you can message each other here to sort out the details.</p>
+{% endif %}
+
+<p class="aside"><a href="{% url 'games' %}">Your games</a></p>
+{% endblock %}

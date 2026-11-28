@@ -1290,3 +1290,114 @@ def saved_search_run(request, saved_search_id: int):
     }
     log_operation("saved_search.run", "reused", account_id=viewer_id)
     return redirect(f"{reverse('search')}?{urlencode(query)}")
+
+
+# --- Messages (M9) -----------------------------------------------------------
+#
+# In-app chat. **Not in the Final Validated PRD**: PRD §12.5 records it as formally
+# excluded, and it was added on an explicit instruction from the project lead. The PRD
+# and an ADR still need to record that decision.
+#
+# Every rule is M9's: who may talk to whom, what a block does, and what a message may
+# not contain. These views collect the words and report what M9 decided (rule 14).
+
+
+def _conversation_views(records, viewer_id):
+    """Resolve each counterpart's display name through M2, read-only (rule 14)."""
+    from rally.core.shapers.messaging import conversation_views
+    from rally.modules.profiles.api import facade as profiles
+
+    names = {
+        record.other_party_account_id: profiles.get_public_profile(
+            record.other_party_account_id
+        )
+        for record in records
+    }
+    return conversation_views(records, names)
+
+
+@require_http_methods(["GET"])
+def conversations(request):
+    """A player's own conversations (M9).
+
+    Blocked pairs are omitted by M9, the same way they vanish from search and the
+    favorites list (ASR-10).
+    """
+    from rally.modules.messaging.api import facade as messaging
+
+    viewer_id = request.viewer.account_id
+    records = messaging.list_conversations(viewer_id)
+    return render(
+        request,
+        "conversations.html",
+        {"conversations": _conversation_views(records, viewer_id)},
+    )
+
+
+@require_http_methods(["GET", "POST"])
+def conversation(request, conversation_id: int):
+    """One thread: read it, and say something.
+
+    The GET marks what the other player sent as read — that is this page's own
+    bookkeeping about the viewer, not a change to anybody else's data, so it does not
+    need to be a POST. Posting a message does (FE-9).
+    """
+    from rally.core.shapers.messaging import message_views
+    from rally.modules.messaging.api import facade as messaging
+    from rally.modules.profiles.api import facade as profiles
+
+    viewer_id = request.viewer.account_id
+    other_id = messaging.other_party(conversation_id, viewer_id)
+    if other_id is None:
+        # Somebody else's thread is a not-found, never a "forbidden" (ASR-05).
+        raise Http404(messaging.NOT_FOUND)
+
+    other = profiles.get_public_profile(other_id)
+    error = ""
+
+    if request.method == "POST":
+        result = messaging.post_message(
+            conversation_id, viewer_id, request.POST.get("body", "")
+        )
+        if result.ok:
+            return redirect("conversation", conversation_id=conversation_id)
+        # The typed words come back with the reason, so nothing is lost.
+        error = result.error
+
+    messaging.mark_read(conversation_id, viewer_id)
+    records = messaging.list_messages(conversation_id, viewer_id)
+    return render(
+        request,
+        "conversation.html",
+        {
+            "conversation_id": conversation_id,
+            "other_name": other.display_name if other else "A player who is no longer available",
+            "other_id": other_id,
+            # NOT "messages": that name is Django's flash-message context, and
+            # base.html renders it as notices at the top of every page.
+            "thread": message_views(records or [], viewer_id),
+            "body": request.POST.get("body", "") if error else "",
+            "error": error,
+            "maximum": messaging.MESSAGE_MAX_LENGTH,
+        },
+        status=400 if error else 200,
+    )
+
+
+@require_http_methods(["POST"])
+def conversation_open(request, account_id: int):
+    """Start, or return to, the thread with one player.
+
+    A POST because it may create a conversation (FE-9). M9 is idempotent, so pressing
+    "Message" twice lands in the same place.
+    """
+    from rally.modules.messaging.api import facade as messaging
+
+    viewer_id = request.viewer.account_id
+    _player_or_404(account_id, viewer_id)
+
+    result = messaging.open_conversation(viewer_id, account_id)
+    if not result.ok:
+        messages.error(request, result.error)
+        return redirect(_safe_next(request))
+    return redirect("conversation", conversation_id=result.conversation_id)

@@ -28,6 +28,8 @@ forbidden_modules =
     rally.modules.safety.models
     rally.modules.player_collections.internal
     rally.modules.player_collections.models
+    rally.modules.messaging.internal
+    rally.modules.messaging.models
 
 [importlinter:contract:modules-do-not-import-the-web-layer]
 name = A capability module never imports Platform's web layer
@@ -168,6 +170,56 @@ forbidden_modules =
     rally.settings
     rally.urls
 
+[importlinter:contract:messaging-depends-on-m5-and-m6-only]
+name = M9 Messaging imports M5 and M6 and nothing else, through their facades
+type = forbidden
+# M9 asks M5 whether a confirmed game exists and M6 whether the pair is blocked. Those
+# two are the whole of its reach: it never touches M1 (contact data lives there and
+# must not travel in a message), never M7 (it appends nothing), and never M4 or M8.
+allow_indirect_imports = true
+source_modules =
+    rally.modules.messaging.api
+    rally.modules.messaging.internal
+    rally.modules.messaging.views
+    rally.modules.messaging.models
+forbidden_modules =
+    rally.modules.identity
+    rally.modules.profiles
+    rally.modules.availability
+    rally.modules.search
+    rally.modules.notification
+    rally.modules.player_collections
+    rally.core.web
+    rally.settings
+    rally.urls
+
+[importlinter:contract:messaging-uses-facades-only]
+name = M9 reaches M5 and M6 through their facades, never their internals (rule 2)
+type = forbidden
+allow_indirect_imports = true
+source_modules =
+    rally.modules.messaging
+forbidden_modules =
+    rally.modules.invitations.internal
+    rally.modules.invitations.models
+    rally.modules.safety.internal
+    rally.modules.safety.models
+
+[importlinter:contract:nothing-imports-messaging]
+name = Nothing depends on M9; it is a leaf
+type = forbidden
+source_modules =
+    rally.modules.identity
+    rally.modules.profiles
+    rally.modules.availability
+    rally.modules.search
+    rally.modules.invitations
+    rally.modules.safety
+    rally.modules.notification
+    rally.modules.player_collections
+forbidden_modules =
+    rally.modules.messaging
+
 [importlinter:contract:nothing-imports-collections]
 name = Nothing depends on M8; it is a leaf (AGENTS.md section 3)
 type = forbidden
@@ -224,3 +276,5 @@ forbidden_modules =
     rally.modules.safety.models
     rally.modules.player_collections.internal
     rally.modules.player_collections.models
+    rally.modules.messaging.internal
+    rally.modules.messaging.models

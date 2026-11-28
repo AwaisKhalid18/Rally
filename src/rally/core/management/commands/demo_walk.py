@@ -248,7 +248,42 @@ class Command(BaseCommand):
             "an address reached a subject line",
         )
 
-        self.step("9. Cancel the game, and the time frees itself (S11)")
+        self.step("9. Messaging the player you have a game with (M9)")
+        from rally.modules.messaging.api import facade as messaging
+
+        opened = alice.post(
+            reverse("conversation_open", kwargs={"account_id": bob_id}),
+            {"next": reverse("games")},
+        )
+        self.expect(opened.status_code == 302, "the conversation would not open")
+        thread = messaging.conversation_with(alice_id, bob_id)
+        self.expect(thread, "no conversation was created")
+        said = alice.post(
+            reverse("conversation", kwargs={"conversation_id": thread}),
+            {"body": "Court 3 at six, see you there"},
+        )
+        self.expect(said.status_code == 302, "the message was not sent")
+        self.says("Alice messages Bob", "'Court 3 at six, see you there'")
+
+        refused = alice.post(
+            reverse("conversation", kwargs={"conversation_id": thread}),
+            {"body": "ring me on 0300 123 4567"},
+        )
+        self.expect(refused.status_code == 400, "a phone number was accepted")
+        self.says("a phone number in a message", "refused - contact data stays in M1")
+
+        stranger = alice.post(
+            reverse("conversation_open", kwargs={"account_id": carol_id}),
+            {"next": reverse("games")},
+        )
+        self.expect(stranger.status_code == 302, "opening with Carol did not redirect")
+        self.expect(
+            messaging.conversation_with(alice_id, carol_id) is None,
+            "a conversation opened with a player there is no confirmed game with",
+        )
+        self.says("messaging someone with no game", "refused")
+
+        self.step("10. Cancel the game, and the time frees itself (S11)")
         cancelled = alice.post(reverse("game_cancel", kwargs={"game_id": game_id}))
         self.expect(cancelled.status_code == 302, "the game could not be cancelled")
         self.says("Alice cancels", "the game is Cancelled; the invitation stays Accepted")
@@ -260,7 +295,7 @@ class Command(BaseCommand):
         self.expect(freed.ok, f"the freed time could not be used: {freed.error}")
         self.says("Carol's invitation now", "accepted - the time is free again (G-10)")
 
-        self.step("10. Block, cascade and report (S12)")
+        self.step("11. Block, cascade and report (S12)")
         pending = invitations.send(
             sender_account_id=carol_id, recipient_account_id=alice_id,
             starts_at=self.instant(day, "20:00"), ends_at=self.instant(day, "22:00"),
@@ -299,16 +334,16 @@ class Command(BaseCommand):
         )
         self.says("Alice reports Bob", "stored for review; Bob is not told")
 
-        self.step("11. Privacy, on every page Alice can reach")
+        self.step("12. Privacy, on every page Alice can reach")
         leaked = []
         for name in ("home", "profile", "availability", "search", "favorites",
                      "saved_searches", "invitations", "games", "notifications",
-                     "blocked_players", "compare"):
+                     "blocked_players", "compare", "conversations"):
             page = alice.get(reverse(name))
             if page.status_code == 200 and "@" in page.content.decode():
                 leaked.append(name)
         self.expect(not leaked, f"an address appeared on: {leaked}")
-        self.says("pages checked", "11, none carrying an email, phone or coordinate")
+        self.says("pages checked", "12, none carrying an email, phone or coordinate")
 
         anonymous = Client()
         redirected = anonymous.get(reverse("games"))

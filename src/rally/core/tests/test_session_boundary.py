@@ -32,6 +32,8 @@ SAMPLE_ARGS = {
     "saved_search_edit": {"saved_search_id": 999999},
     "saved_search_run": {"saved_search_id": 999999},
     "saved_search_delete": {"saved_search_id": 999999},
+    "conversation": {"conversation_id": 999999},
+    "conversation_open": {"account_id": 999999},
 }
 
 

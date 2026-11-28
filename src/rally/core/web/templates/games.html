@@ -14,9 +14,16 @@
           <span class="venue">{{ game.venue }}</span>
           <span class="status status--{{ game.status }}">{{ game.status_label }}</span>
         </p>
-        {% if game.can_cancel %}
-          <p><a href="{% url 'game_cancel' game.game_id %}">Cancel this game</a></p>
-        {% endif %}
+        <p class="result-actions">
+          <form method="post" action="{% url 'conversation_open' game.other_party_account_id %}" class="inline">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{% url 'games' %}">
+            <button type="submit" class="link-button">Message {{ game.other_party_name }}</button>
+          </form>
+          {% if game.can_cancel %}
+            <a href="{% url 'game_cancel' game.game_id %}">Cancel this game</a>
+          {% endif %}
+        </p>
       </li>
     {% endfor %}
   </ul>

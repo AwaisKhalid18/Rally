@@ -200,3 +200,18 @@ def cancel_game(game_id: int, account_id: int) -> CancelGameResult:
     )
     return CancelGameResult(game_id=game_id)
 
+
+
+def have_confirmed_game_between(first_account_id: int, second_account_id: int) -> bool:
+    """Do these two players share a live confirmed game?
+
+    Used by M9 to decide whether they may message each other. A **cancelled** game does
+    not count — the pair agreed to play and then did not, so the thread closes with it.
+    A game whose start time has passed does: people need to talk after playing.
+    """
+    theirs = GameParticipant.objects.filter(
+        account_id=first_account_id, cancelled_at__isnull=True
+    ).values_list("game_id", flat=True)
+    return GameParticipant.objects.filter(
+        game_id__in=theirs, account_id=second_account_id, cancelled_at__isnull=True
+    ).exists()

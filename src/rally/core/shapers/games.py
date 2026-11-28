@@ -20,6 +20,9 @@ UNKNOWN_PLAYER = "A player who is no longer available"
 class GameView:
     game_id: int
     invitation_id: int
+    # Needed to offer a message to the other player (M9). An account id is not
+    # private: it already appears in every profile URL.
+    other_party_account_id: int
     other_party_name: str
     when_text: str
     venue: str
@@ -43,6 +46,7 @@ def game_view(detail: GameDetail, other_party_name: str | None) -> GameView:
     return GameView(
         game_id=detail.game_id,
         invitation_id=detail.invitation_id,
+        other_party_account_id=detail.other_party_account_id,
         # Rule 13: a name that cannot be resolved is replaced by a reason, not a blank.
         other_party_name=other_party_name or UNKNOWN_PLAYER,
         when_text=(

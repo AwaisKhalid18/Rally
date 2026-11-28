@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Messages with {{ other_name }}{% endblock %}
+{% block content %}
+<h1>{{ other_name }}</h1>
+
+<ul class="thread">
+  {% for message in thread %}
+    <li class="message-bubble{% if message.is_mine %} message-bubble--mine{% endif %}">
+      <p class="message-body">{{ message.body }}</p>
+      <p class="message-meta">{{ message.author }} · {{ message.when_text }}</p>
+    </li>
+  {% empty %}
+    <li class="notice">No messages yet. Say hello.</li>
+  {% endfor %}
+</ul>
+
+<form method="post" action="{% url 'conversation' conversation_id %}" class="message-form">
+  {% csrf_token %}
+  <div class="field">
+    <label for="id_body">Your message</label>
+    <textarea id="id_body" name="body" rows="3" maxlength="{{ maximum }}">{{ body }}</textarea>
+    {% if error %}<p class="error">{{ error }}</p>{% endif %}
+    <p class="hint">Rally does not pass on email addresses or phone numbers — arrange
+    the game here. Up to {{ maximum }} characters.</p>
+  </div>
+  <button type="submit" class="button">Send</button>
+</form>
+
+<p class="aside"><a href="{% url 'conversations' %}">All your messages</a> ·
+  <a href="{% url 'player_profile' other_id %}">{{ other_name }}'s profile</a></p>
+{% endblock %}

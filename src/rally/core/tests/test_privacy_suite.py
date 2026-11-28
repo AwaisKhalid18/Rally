@@ -101,6 +101,17 @@ class PrivacyCase(TestCase):
         ).saved_search_id
         safety.report(cls.them, cls.third, "harassment", "Private words about a player.")
 
+        # A conversation, so the chat screens are swept with something real in them.
+        from rally.modules.messaging.api import facade as messaging
+
+        opened = messaging.open_conversation(cls.me, cls.them)
+        assert opened.ok, opened.error
+        cls.conversation = opened.conversation_id
+        posted = messaging.post_message(cls.conversation, cls.them, "See you at six")
+        assert posted.ok, posted.error
+
+        cls.their_conversation = None  # they have no other thread; nothing to leak
+
         cls.my_favorite = collections.add_favorite(cls.me, cls.them)
         cls.my_search = collections.save_search(
             cls.me,
@@ -156,6 +167,8 @@ class PrivacyCase(TestCase):
             "saved_search_edit": {"saved_search_id": self.my_search},
             "saved_search_run": {"saved_search_id": self.my_search},
             "saved_search_delete": {"saved_search_id": self.my_search},
+            "conversation": {"conversation_id": self.conversation},
+            "conversation_open": {"account_id": self.them},
         }.get(name, {})
 
     def every_route(self):

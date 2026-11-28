@@ -90,7 +90,10 @@ class InviteFormTests(InvitationFlowCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Recipient")
-        self.assertContains(response, "Venue")
+        # The venue field: a list of places to pick from, and the free text the PRD
+        # asks for, which stayed when the list arrived.
+        self.assertContains(response, "Where to play")
+        self.assertContains(response, 'name="venue"')
 
     def test_inviting_yourself_is_not_a_page(self):
         response = self.client.get(

@@ -258,3 +258,12 @@ def cancel_game(game_id: int, account_id: int) -> CancelGameResult:
     """
     result = games.cancel_game(game_id, account_id)
     return CancelGameResult(game_id=result.game_id, error=result.error)
+
+
+def have_confirmed_game_between(first_account_id: int, second_account_id: int) -> bool:
+    """Whether two players share a live confirmed game.
+
+    Published for M9 Messaging, which may only open a conversation where a game exists.
+    A cancelled game does not count; one that has already been played does.
+    """
+    return games.have_confirmed_game_between(first_account_id, second_account_id)
