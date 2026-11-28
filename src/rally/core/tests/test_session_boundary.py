@@ -29,6 +29,9 @@ SAMPLE_ARGS = {
     "report_player": {"account_id": 999999},
     "favorite_add": {"account_id": 999999},
     "favorite_remove": {"account_id": 999999},
+    "saved_search_edit": {"saved_search_id": 999999},
+    "saved_search_run": {"saved_search_id": 999999},
+    "saved_search_delete": {"saved_search_id": 999999},
 }
 
 

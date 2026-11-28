@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from rally.core.localtime import local_date_text, local_time_text, to_local
+from rally.core.localtime import DATE_FORMAT, local_date_text, local_time_text, to_local
 from rally.modules.player_collections.api.facade import FavoriteEntry
 
 LEVEL_LABELS = {
@@ -75,3 +75,52 @@ def favorite_view(entry: FavoriteEntry) -> FavoriteView:
 
 def favorite_views(entries) -> list[FavoriteView]:
     return [favorite_view(entry) for entry in entries]
+
+
+# --- Saved searches (S15) ----------------------------------------------------
+
+
+@dataclass(frozen=True)
+class SavedSearchView:
+    saved_search_id: int
+    name: str
+    day_text: str
+    when_text: str
+    area_name: str
+    level_text: str
+    distance_text: str
+    can_run: bool
+    # "" when it can run; otherwise the reason, ready to print (G-05, FE-6).
+    cannot_run_reason: str
+
+
+def saved_search_view(record, area_names) -> SavedSearchView:
+    if record.fixed_date is not None:
+        # A plain date, already in the display time zone: it is formatted directly, not
+        # through `local_date_text`, which converts an instant.
+        day_text = record.fixed_date.strftime(DATE_FORMAT)
+    else:
+        day_text = record.day_rule_label
+
+    return SavedSearchView(
+        saved_search_id=record.saved_search_id,
+        name=record.name,
+        day_text=day_text,
+        when_text=(
+            f"{record.start_time.strftime('%H:%M')}-{record.end_time.strftime('%H:%M')}"
+        ),
+        # Rule 13: an area that is no longer on the list says so rather than vanishing.
+        area_name=area_names.get(record.area_code) or "An area that is no longer listed",
+        level_text=LEVEL_LABELS.get(record.playing_level, "Any level"),
+        distance_text=(
+            f"within {record.max_distance_km} km"
+            if record.max_distance_km
+            else "the default distance"
+        ),
+        can_run=record.can_run,
+        cannot_run_reason=record.cannot_run_reason or "",
+    )
+
+
+def saved_search_views(records, area_names) -> list[SavedSearchView]:
+    return [saved_search_view(record, area_names) for record in records]

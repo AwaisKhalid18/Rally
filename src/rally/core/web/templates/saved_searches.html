@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Your saved searches{% endblock %}
+{% block content %}
+<h1>Your saved searches</h1>
+
+{% if searches %}
+  <p class="lead">{{ count }} of {{ maximum }}. Reuse one without typing the criteria
+  again.</p>
+
+  <ul class="saved-searches">
+    {% for search in searches %}
+      <li class="saved-search{% if not search.can_run %} saved-search--stale{% endif %}">
+        <h3>{{ search.name }}</h3>
+        <p class="saved-search-facts">
+          <span class="day">{{ search.day_text }}</span> ·
+          <span class="when">{{ search.when_text }}</span> ·
+          <span class="area">{{ search.area_name }}</span> ·
+          <span class="level">{{ search.level_text }}</span> ·
+          <span class="distance">{{ search.distance_text }}</span>
+        </p>
+        {% if not search.can_run %}
+          {# G-05: said plainly, and the search is not run. #}
+          <p class="notice">{{ search.cannot_run_reason }}</p>
+        {% endif %}
+        <p class="result-actions">
+          {% if search.can_run %}
+            <a class="button" href="{% url 'saved_search_run' search.saved_search_id %}">Run it</a>
+          {% endif %}
+          <a href="{% url 'saved_search_edit' search.saved_search_id %}">Edit</a>
+          <form method="post" action="{% url 'saved_search_delete' search.saved_search_id %}" class="inline">
+            {% csrf_token %}
+            <button type="submit" class="link-button">Delete</button>
+          </form>
+        </p>
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p class="notice">You have no saved searches yet. Save the criteria you use often and
+  they will be here next time.</p>
+{% endif %}
+
+<p class="result-actions">
+  <a class="button" href="{% url 'saved_search_new' %}">Save a new search</a>
+</p>
+
+<p class="aside"><a href="{% url 'search' %}">Find a player</a></p>
+{% endblock %}

@@ -9,7 +9,7 @@ from django.contrib import messages
 from django.http import Http404, HttpResponseRedirect
 from django.shortcuts import redirect, render
 from django.urls import reverse
-from django.utils.http import url_has_allowed_host_and_scheme
+from django.utils.http import url_has_allowed_host_and_scheme, urlencode
 from django.views.decorators.http import require_http_methods
 
 from rally.core.logging import log_operation
@@ -1063,3 +1063,207 @@ def compare(request):
             "maximum": search_api.MAX_COMPARED,
         },
     )
+
+
+# --- Saved searches (S15) ----------------------------------------------------
+#
+# FR-18, which is **not** part of the Validated PRD (architecture §16.1, plan.md A-00).
+#
+# Reuse is the one composition this slice adds: criteria from M8, then M4.search().
+# M8 never calls M4 and M4 never reads M8 (rule 12); Platform is where they meet.
+
+
+def _saved_search_form_values(request):
+    return {
+        "name": request.POST.get("name", ""),
+        "day_kind": request.POST.get("day_kind", "rule"),
+        "fixed_date": request.POST.get("fixed_date", ""),
+        "day_rule": request.POST.get("day_rule", ""),
+        "start": request.POST.get("start", ""),
+        "end": request.POST.get("end", ""),
+        "area_code": request.POST.get("area_code", ""),
+        "playing_level": request.POST.get("playing_level", ""),
+        "max_distance_km": request.POST.get("max_distance_km", ""),
+    }
+
+
+def _parse_saved_search(values):
+    """Turn the typed strings into the types M8 takes. Returns (fields, errors)."""
+    import datetime as _dt
+
+    from rally.core.localtime import DATE_FORMAT, TIME_FORMAT
+
+    errors: dict[str, str] = {}
+    fields: dict = {}
+
+    # Exactly one of the two says which day (G-05). The radio decides which the player
+    # meant, so a leftover value in the other box cannot make the request ambiguous.
+    if values["day_kind"] == "date":
+        fields["day_rule"] = ""
+        try:
+            fields["fixed_date"] = _dt.datetime.strptime(values["fixed_date"], DATE_FORMAT).date()
+        except ValueError:
+            fields["fixed_date"] = None
+            errors["day"] = "Enter a date as YYYY-MM-DD."
+    else:
+        fields["fixed_date"] = None
+        fields["day_rule"] = values["day_rule"]
+
+    for key, field in (("start", "start_time"), ("end", "end_time")):
+        try:
+            fields[field] = _dt.datetime.strptime(values[key], TIME_FORMAT).time()
+        except ValueError:
+            fields[field] = None
+
+    fields["area_code"] = values["area_code"]
+    fields["playing_level"] = values["playing_level"]
+    distance = values["max_distance_km"]
+    fields["max_distance_km"] = int(distance) if distance.isdigit() else None
+    return fields, errors
+
+
+@require_http_methods(["GET"])
+def saved_searches(request):
+    """A player's own saved searches (FR-18)."""
+    from rally.modules.player_collections.api import facade as collections
+    from rally.modules.profiles.api import facade as profiles
+
+    from rally.core.shapers.collections import saved_search_views
+
+    viewer_id = request.viewer.account_id
+    records = collections.list_searches(viewer_id)
+    areas = {area.code: area.name for area in profiles.list_areas()}
+    return render(
+        request,
+        "saved_searches.html",
+        {
+            "searches": saved_search_views(records, areas),
+            "count": len(records),
+            "maximum": collections.max_saved_searches(),
+        },
+    )
+
+
+@require_http_methods(["GET", "POST"])
+def saved_search_edit(request, saved_search_id: int = 0):
+    """Create or edit a saved search. Editing never runs one (§16.8)."""
+    from rally.modules.player_collections.api import facade as collections
+    from rally.modules.profiles.api import facade as profiles
+    from rally.modules.search.api import facade as search_api
+
+    viewer_id = request.viewer.account_id
+    existing = (
+        collections.get_search(saved_search_id, viewer_id) if saved_search_id else None
+    )
+    if saved_search_id and existing is None:
+        raise Http404(collections.SEARCH_NOT_FOUND)
+
+    def page(values, errors=None, status=200):
+        return render(
+            request,
+            "saved_search_edit.html",
+            {
+                "values": values,
+                "errors": errors or {},
+                "existing": existing,
+                "areas": profiles.list_areas(),
+                "levels": profiles.playing_levels(),
+                "day_rules": collections.DAY_RULE_CHOICES,
+                "distance_choices": search_api.DISTANCE_CHOICES_KM,
+            },
+            status=status,
+        )
+
+    if request.method == "GET":
+        from rally.core.localtime import DATE_FORMAT, TIME_FORMAT
+
+        if existing is None:
+            return page(
+                {
+                    "name": "", "day_kind": "rule", "fixed_date": "", "day_rule": "",
+                    "start": "", "end": "", "area_code": "", "playing_level": "",
+                    "max_distance_km": "",
+                }
+            )
+        return page(
+            {
+                "name": existing.name,
+                "day_kind": "date" if existing.fixed_date else "rule",
+                "fixed_date": (
+                    existing.fixed_date.strftime(DATE_FORMAT) if existing.fixed_date else ""
+                ),
+                "day_rule": existing.day_rule,
+                "start": existing.start_time.strftime(TIME_FORMAT),
+                "end": existing.end_time.strftime(TIME_FORMAT),
+                "area_code": existing.area_code,
+                "playing_level": existing.playing_level,
+                "max_distance_km": str(existing.max_distance_km or ""),
+            }
+        )
+
+    values = _saved_search_form_values(request)
+    fields, errors = _parse_saved_search(values)
+    if errors:
+        return page(values, errors, status=400)
+
+    if existing:
+        result = collections.update_search(
+            saved_search_id, viewer_id, name=values["name"], **fields
+        )
+    else:
+        result = collections.save_search(viewer_id, name=values["name"], **fields)
+    if not result.ok:
+        return page(values, result.errors, status=400)
+
+    messages.success(request, "Saved.")
+    return redirect("saved_searches")
+
+
+@require_http_methods(["POST"])
+def saved_search_delete(request, saved_search_id: int):
+    """Delete your own (FE-9: a POST, never a GET)."""
+    from rally.modules.player_collections.api import facade as collections
+
+    if collections.delete_search(saved_search_id, request.viewer.account_id):
+        messages.success(request, "Deleted.")
+    else:
+        messages.error(request, collections.SEARCH_NOT_FOUND)
+    return redirect("saved_searches")
+
+
+@require_http_methods(["GET"])
+def saved_search_run(request, saved_search_id: int):
+    """Reuse a saved search (FR-18, architecture §16.8).
+
+    **The composition this slice exists for.** Platform fetches the criteria from M8
+    and calls `M4.search()` — the same entry point a typed search uses, so ASR-02 and
+    ASR-10 apply identically. M8 does not run searches and M4 does not read M8.
+
+    A fixed date that has passed is **not** run: the player is told it needs a new
+    date (G-05). Silently shifting it to today would run a search they never asked for.
+    """
+    from rally.modules.player_collections.api import facade as collections
+
+    viewer_id = request.viewer.account_id
+    record = collections.get_search(saved_search_id, viewer_id)
+    if record is None:
+        raise Http404(collections.SEARCH_NOT_FOUND)
+
+    if not record.can_run:
+        messages.error(request, record.cannot_run_reason)
+        return redirect("saved_search_edit", saved_search_id=saved_search_id)
+
+    from rally.core.localtime import DATE_FORMAT, TIME_FORMAT
+
+    # The criteria are handed to the ordinary search screen exactly as a player would
+    # have typed them, so the results page echoes them back unchanged (FR-13, FE-7).
+    query = {
+        "date": record.resolved_date.strftime(DATE_FORMAT),
+        "start": record.start_time.strftime(TIME_FORMAT),
+        "end": record.end_time.strftime(TIME_FORMAT),
+        "area_code": record.area_code,
+        "playing_level": record.playing_level,
+        "max_distance_km": str(record.max_distance_km or ""),
+    }
+    log_operation("saved_search.run", "reused", account_id=viewer_id)
+    return redirect(f"{reverse('search')}?{urlencode(query)}")

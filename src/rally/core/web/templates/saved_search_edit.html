@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}{% if existing %}Edit a saved search{% else %}Save a search{% endif %}{% endblock %}
+{% block content %}
+<h1>{% if existing %}Edit "{{ existing.name }}"{% else %}Save a search{% endif %}</h1>
+
+<p class="lead">Saving does not run anything. You run it when you want it.</p>
+
+<form method="post" action="{% if existing %}{% url 'saved_search_edit' existing.saved_search_id %}{% else %}{% url 'saved_search_new' %}{% endif %}" novalidate>
+  {% csrf_token %}
+
+  <div class="field">
+    <label for="id_name">Name</label>
+    <input type="text" name="name" id="id_name" value="{{ values.name }}">
+    {% if errors.name %}<p class="error">{{ errors.name }}</p>{% endif %}
+  </div>
+
+  <fieldset class="field">
+    <legend class="label">Which day</legend>
+    {# G-05: either a fixed date or a rule that resolves when the search is run. The
+       radio says which the player meant, so a leftover value in the other box cannot
+       make the request ambiguous. #}
+    <label class="choice">
+      <input type="radio" name="day_kind" value="rule"
+             {% if values.day_kind != "date" %}checked{% endif %}>
+      A day, worked out each time
+    </label>
+    <select name="day_rule" id="id_day_rule">
+      <option value="">Choose a day</option>
+      {% for value, label in day_rules %}
+        <option value="{{ value }}"{% if values.day_rule == value %} selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+
+    <label class="choice">
+      <input type="radio" name="day_kind" value="date"
+             {% if values.day_kind == "date" %}checked{% endif %}>
+      One particular date
+    </label>
+    <input type="date" name="fixed_date" id="id_fixed_date" value="{{ values.fixed_date }}">
+    <p class="hint">A date that has passed is kept, but it will not run until you give
+    it a new one.</p>
+    {% if errors.day %}<p class="error">{{ errors.day }}</p>{% endif %}
+  </fieldset>
+
+  <div class="field">
+    <label for="id_start">From</label>
+    <input type="time" name="start" id="id_start" value="{{ values.start }}">
+  </div>
+  <div class="field">
+    <label for="id_end">Until</label>
+    <input type="time" name="end" id="id_end" value="{{ values.end }}">
+    {% if errors.times %}<p class="error">{{ errors.times }}</p>{% endif %}
+  </div>
+
+  <div class="field">
+    <label for="id_area_code">Area</label>
+    <select name="area_code" id="id_area_code">
+      <option value="">Choose an area</option>
+      {% for area in areas %}
+        <option value="{{ area.code }}"{% if area.code == values.area_code %} selected{% endif %}>{{ area.name }}</option>
+      {% endfor %}
+    </select>
+    {% if errors.area_code %}<p class="error">{{ errors.area_code }}</p>{% endif %}
+  </div>
+
+  <div class="field">
+    <label for="id_playing_level">Playing level <span class="hint">(optional)</span></label>
+    <select name="playing_level" id="id_playing_level">
+      <option value="">Any level</option>
+      {% for level in levels %}
+        <option value="{{ level.code }}"{% if level.code == values.playing_level %} selected{% endif %}>{{ level.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="field">
+    <label for="id_max_distance_km">Maximum distance <span class="hint">(optional)</span></label>
+    <select name="max_distance_km" id="id_max_distance_km">
+      <option value="">The default</option>
+      {% for km in distance_choices %}
+        <option value="{{ km }}"{% if values.max_distance_km == km|stringformat:"s" %} selected{% endif %}>{{ km }} km</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <button type="submit" class="button">Save</button>
+</form>
+
+<p class="aside"><a href="{% url 'saved_searches' %}">Back to your saved searches</a></p>
+{% endblock %}

@@ -182,3 +182,18 @@ textarea { width: 100%; font: inherit; padding: var(--space-2); border: 1px soli
 .compare tbody th { background: var(--surface); font-weight: 600; white-space: nowrap; }
 .compare .slots { margin: 0; padding-left: 1.1rem; }
 .absent { color: var(--ink-soft); font-style: italic; }
+
+/* Saved searches (S15). A search that cannot run is dimmed and says why, rather than
+   quietly disappearing or running for a day nobody asked for. */
+.saved-searches { list-style: none; margin: 0 0 var(--space-4); padding: 0; }
+.saved-search {
+  background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: var(--space-3); margin-bottom: var(--space-3);
+}
+.saved-search h3 { margin: 0 0 var(--space-1); font-size: 1rem; }
+.saved-search--stale { border-style: dashed; }
+.saved-search-facts { margin: 0 0 var(--space-2); font-size: 0.875rem; color: var(--ink-soft); }
+.saved-search .result-actions { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; margin: 0; }
+.saved-search form.inline { background: none; border: 0; padding: 0; display: inline; }
+fieldset.field { border: 1px solid var(--line); border-radius: var(--radius); padding: var(--space-3); }
+fieldset.field legend { padding: 0 var(--space-2); }
