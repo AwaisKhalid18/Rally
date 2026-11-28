@@ -65,3 +65,33 @@ class Profile(models.Model):
 
     def __str__(self) -> str:  # pragma: no cover - never shown to a player
         return f"profile:{self.account_id}"
+
+
+class Venue(models.Model):
+    """A place to play, from the fixed list (`ops/seed/venues.csv`).
+
+    M2 already owns the geography reference data — the general areas — so the list of
+    places sits here beside it rather than becoming a new owner (architecture §5).
+
+    **No coordinates, deliberately.** A venue is a name both players recognise, not a
+    point on a map. Distance is still derived from the players' *area* centroids, so
+    nothing here changes what the system knows about anybody's location (rule 7,
+    ASR-03).
+
+    **This reserves nothing.** Court booking is formally excluded from the MVP
+    (PRD §12.5, AGENTS.md §7); naming a venue is the two players agreeing where to
+    meet, exactly as the free-text field already allowed. M5 still stores the venue as
+    text on the invitation, so this list is a convenience and never a constraint — a
+    player may always type somewhere that is not on it.
+    """
+
+    code = models.SlugField(max_length=48, unique=True)
+    area = models.ForeignKey(Area, on_delete=models.CASCADE, related_name="venues")
+    name = models.CharField(max_length=100)
+
+    class Meta:
+        db_table = "venue"
+        ordering = ["area__name", "name"]
+
+    def __str__(self) -> str:  # pragma: no cover
+        return self.name

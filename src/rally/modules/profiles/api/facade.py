@@ -11,7 +11,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from rally.modules.profiles.internal import rules
-from rally.modules.profiles.internal.models import LEVEL_RANK, Area, PlayingLevel, Profile
+from rally.modules.profiles.internal.models import (
+    LEVEL_RANK,
+    Area,
+    PlayingLevel,
+    Profile,
+    Venue,
+)
 
 DISPLAY_NAME_MIN_LENGTH = rules.DISPLAY_NAME_MIN_LENGTH
 DISPLAY_NAME_MAX_LENGTH = rules.DISPLAY_NAME_MAX_LENGTH
@@ -202,3 +208,70 @@ def is_verified_player(account_id: int) -> bool:
     from rally.modules.profiles.internal.verification import account_is_verified
 
     return account_is_verified(account_id)
+
+
+# --- Places to play (PRD §12.3) ---------------------------------------------
+#
+# M2 owns the geography reference data, so the list of venues sits beside the areas.
+# It carries **no coordinates** (rule 7, ASR-03) and **reserves nothing**: court
+# booking is excluded from the MVP (PRD §12.5), and M5 still stores the venue as free
+# text, so a player may always name somewhere that is not on this list.
+
+
+@dataclass(frozen=True)
+class VenueOption:
+    code: str
+    name: str
+    area_code: str
+    area_name: str
+
+    @property
+    def label(self) -> str:
+        """What a player reads in the list: the place, and the area it is in."""
+        return f"{self.name} — {self.area_name}"
+
+
+def list_venues(area_code: str = "") -> list[VenueOption]:
+    """Every place to play, or only those in one area. Ordered by area, then name."""
+    rows = Venue.objects.select_related("area")
+    if area_code:
+        rows = rows.filter(area__code=area_code)
+    return [
+        VenueOption(
+            code=row.code,
+            name=row.name,
+            area_code=row.area.code,
+            area_name=row.area.name,
+        )
+        for row in rows
+    ]
+
+
+def get_venue(code: str) -> VenueOption | None:
+    """One venue by code, or None. The caller turns the name into the invitation's
+    free-text venue; M5 never learns that this list exists."""
+    row = Venue.objects.select_related("area").filter(code=code).first()
+    if row is None:
+        return None
+    return VenueOption(
+        code=row.code, name=row.name, area_code=row.area.code, area_name=row.area.name
+    )
+
+
+def replace_venues(rows: list[dict]) -> int:
+    """Load the fixed list, replacing whatever is there (`manage.py load_venues`).
+
+    Returns how many venues exist afterwards. A row naming an area that does not exist
+    is refused rather than silently skipped: a venue in no area could never be shown.
+    """
+    known = {area.code: area for area in Area.objects.all()}
+    missing = sorted({row["area_code"] for row in rows} - set(known))
+    if missing:
+        raise ValueError(f"these venues name areas that do not exist: {missing}")
+
+    Venue.objects.all().delete()
+    Venue.objects.bulk_create(
+        Venue(code=row["code"], name=row["name"], area=known[row["area_code"]])
+        for row in rows
+    )
+    return Venue.objects.count()

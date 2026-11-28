@@ -60,3 +60,34 @@ schema change.
 
 - **R-11** — the pilot city's real area list.
 - **G-12** — the display-name bounds (2–40) are a proposed resolution, not a decision.
+
+
+## Places to play (`venue`)
+
+PRD §12.3 puts a **venue** on every invitation, as free text. M2 keeps a fixed list of
+places so a player can pick one instead of typing it, seeded from `ops/seed/venues.csv`
+by `manage.py load_venues` — the same footing the area list is on, and the same
+placeholder status pending R-11.
+
+It sits in M2 because M2 already owns the geography reference data. Three things it
+deliberately is not:
+
+- **Not a location.** A venue row has a code, a name and the area it is in. There is
+  **no latitude or longitude** — adding one would put location data into the system for
+  the first time (rule 7, ASR-03). Distance is still derived from the players' *area*
+  centroids, untouched.
+- **Not a booking.** Court booking is formally excluded from the MVP (PRD §12.5,
+  AGENTS.md §7). Choosing a venue reserves nothing; arranging the court stays between
+  the two players.
+- **Not a constraint.** M5 still receives, validates and stores the venue as free text
+  and never learns this list exists. A player may always name somewhere that is not on
+  it, which is what the PRD's free-text field already allowed.
+
+| Operation | Notes |
+| --- | --- |
+| `list_venues(area_code="")` | Every place, or those in one area. Ordered by area, then name. |
+| `get_venue(code)` | One by code, or `None`. Platform turns the name into the invitation's venue text. |
+| `replace_venues(rows)` | Loads the fixed list. A row naming an area that does not exist is **refused**, not skipped — a typo in the seed file would otherwise hide for good. |
+
+The invitation form offers the recipient's own area first, because that is where they
+are likely to play.

@@ -1,0 +1,41 @@
+code,area_code,name
+# Rally's list of places to play (PRD §12.3: an invitation names a venue).
+#
+# A row is a court or sports facility and the general AREA it sits in. There is
+# deliberately NO latitude or longitude here: a venue is a name a player recognises,
+# not a point on a map. Distance is still derived from the players' AREA centroids
+# (rule 7, ASR-03), and adding coordinates to this file would put location data into
+# the system for the first time.
+#
+# This list does NOT reserve anything. Court booking is formally excluded from the MVP
+# (PRD §12.5, AGENTS.md §7); a venue here is a suggestion both players recognise, and
+# arranging the court stays between them.
+#
+# PLACEHOLDER DATA, on the same footing as ops/seed/areas.csv and pending the same
+# client confirmation (R-11). These are plausible names for the pilot city used to
+# exercise the feature; the client must confirm the real list of courts before the
+# pilot, and the file is replaced, not the schema.
+#
+# A player may always type a venue that is not on this list: the field stays free text.
+isb-f6-sports,isb-f6,F-6 Community Sports Hall
+isb-f7-club,isb-f7,F-7 Racquet Club
+isb-f7-courts,isb-f7,Rally Courts F-7
+isb-f8-arena,isb-f8,F-8 Indoor Arena
+isb-f10-centre,isb-f10,F-10 Sports Centre
+isb-f11-hall,isb-f11,F-11 Badminton Hall
+isb-g6-gym,isb-g6,G-6 Community Gymnasium
+isb-g9-complex,isb-g9,G-9 Sports Complex
+isb-g10-courts,isb-g10,G-10 Shuttle Courts
+isb-g11-hall,isb-g11,G-11 Indoor Hall
+isb-h8-academy,isb-h8,H-8 Badminton Academy
+isb-i8-centre,isb-i8,I-8 Recreation Centre
+isb-b17-arena,isb-b17,B-17 Sports Arena
+isb-dha2-club,isb-dha2,DHA Phase II Racquet Club
+isb-bahria-courts,isb-bahria,Bahria Town Indoor Courts
+rwp-saddar-hall,rwp-saddar,Saddar Community Hall
+rwp-satellite-gym,rwp-satellite,Satellite Town Gymnasium
+rwp-chaklala-centre,rwp-chaklala,Chaklala Sports Centre
+rwp-gulraiz-courts,rwp-gulraiz,Gulraiz Indoor Courts
+isb-i9-hall,isb-i9,I-9 Industrial Area Sports Hall
+isb-e11-club,isb-e11,E-11 Fitness and Racquet Club
+rwp-westridge-centre,rwp-westridge,Westridge Sports Centre
