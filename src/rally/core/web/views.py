@@ -502,23 +502,46 @@ def invitation_new(request, account_id: int):
     if recipient is None or account_id == sender_id:
         raise Http404(invitations.RECIPIENT_UNKNOWN)
 
+    # Places to play, M2's reference data beside the areas (PRD §12.3). The ones in
+    # the recipient's own area come first, because that is where they are likely to
+    # play. This list reserves nothing: court booking is excluded (PRD §12.5), and M5
+    # still stores the venue as free text, so a player may name somewhere else.
+    near = profiles.list_venues(recipient.area_code)
+    elsewhere = [v for v in profiles.list_venues() if v.area_code != recipient.area_code]
+    venues = near + elsewhere
+
     def page(values, errors=None, status=200):
         return render(
             request,
             "invitation_new.html",
-            {"recipient": recipient, "values": values, "errors": errors or {}},
+            {
+                "recipient": recipient,
+                "values": values,
+                "errors": errors or {},
+                "venues": venues,
+            },
             status=status,
         )
 
     if request.method == "GET":
-        return page({"date": "", "start": "", "end": "", "venue": ""})
+        return page({"date": "", "start": "", "end": "", "venue": "", "venue_code": ""})
 
     values = {
         "date": request.POST.get("date", ""),
         "start": request.POST.get("start", ""),
         "end": request.POST.get("end", ""),
         "venue": request.POST.get("venue", ""),
+        "venue_code": request.POST.get("venue_code", ""),
     }
+
+    # A chosen venue becomes the invitation's venue text. M5 never learns the list
+    # exists: it still receives, validates and stores a plain string (PRD §12.3).
+    if values["venue_code"]:
+        chosen = profiles.get_venue(values["venue_code"])
+        if chosen is None:
+            errors_venue = "That place is no longer listed. Pick another, or type one."
+            return page(values, {"venue": errors_venue}, status=400)
+        values["venue"] = chosen.name
 
     starts_at = ends_at = None
     errors: dict[str, str] = {}

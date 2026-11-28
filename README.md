@@ -65,6 +65,7 @@ the project at it with the environment variables below. Then, from the project r
     copy .env.example .env                              # Linux/macOS: cp
     .venv\Scripts\python manage.py migrate
     .venv\Scripts\python manage.py load_areas          # the pilot city's areas
+    .venv\Scripts\python manage.py load_venues         # the places to play
     .venv\Scripts\python manage.py runserver
 
 Open <http://127.0.0.1:8000/> and register an account. The verification email prints to
@@ -101,6 +102,7 @@ supplied.
 ### Seeing it work, on a fresh database
 
     .venv\Scripts\python manage.py load_areas
+    .venv\Scripts\python manage.py load_venues
     .venv\Scripts\python manage.py seed_players --count 10000   # the CON-03 dataset
     .venv\Scripts\python manage.py demo_walk
 

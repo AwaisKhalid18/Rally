@@ -177,11 +177,15 @@ class Command(BaseCommand):
         self.says("reusing it", "loads the criteria and runs the ordinary search")
 
         self.step("6. Invite, accept, and the confirmed game (S7, S8)")
+        places = profiles.list_venues()
+        self.expect(places, "no places to play - run `manage.py load_venues` first")
+        place = places[0]
         sent = alice.post(
             reverse("invitation_new", kwargs={"account_id": bob_id}),
-            {"date": day, "start": "18:00", "end": "20:00", "venue": VENUE},
+            {"date": day, "start": "18:00", "end": "20:00", "venue_code": place.code},
         )
         self.expect(sent.status_code == 302, "the invitation was refused")
+        self.says("venue picked from the list", place.label)
         _, received = invitations.list_for_player(bob_id)
         invitation_id = received[0].invitation_id
         self.says("Alice invites Bob", f"invitation {invitation_id}, pending")
@@ -205,7 +209,31 @@ class Command(BaseCommand):
         self.expect(not refused.ok, "Bob double-booked himself")
         self.says("Bob tries to double-book", refused.error)
 
-        self.step("7. Notifications and the worker (S10)")
+        self.step("7. Declining an invitation (S8)")
+        turned_down = invitations.send(
+            sender_account_id=carol_id, recipient_account_id=alice_id,
+            starts_at=self.instant(day, "20:00"), ends_at=self.instant(day, "21:00"),
+            venue=place.name,
+        )
+        self.expect(turned_down.ok, f"the invitation to decline was refused: {turned_down.errors}")
+        declined = alice.post(
+            reverse("invitation_decline", kwargs={"invitation_id": turned_down.invitation_id})
+        )
+        self.expect(declined.status_code == 302, "declining failed")
+        after = invitations.get_for_participant(turned_down.invitation_id, carol_id)
+        self.expect(after.status == "declined", f"status is {after.status}, not declined")
+        self.says("Alice declines Carol", "Declined - no reason asked for (PRD 12.3)")
+        again = invitations.accept(turned_down.invitation_id, alice_id)
+        self.expect(not again.ok, "a declined invitation could still be accepted")
+        self.says("trying to accept it afterwards", again.error)
+        self.expect(
+            any(n.notification_type == "invitation.declined"
+                for n in notification.list_for_player(carol_id)),
+            "the sender was not told it was declined",
+        )
+        self.says("Carol is told", "'An invitation you sent was declined'")
+
+        self.step("8. Notifications and the worker (S10)")
         for item in notification.list_for_player(alice_id):
             if item.notification_type == "invitation.accepted":
                 self.says("Alice's inbox", "'An invitation you sent was accepted'")
@@ -220,7 +248,7 @@ class Command(BaseCommand):
             "an address reached a subject line",
         )
 
-        self.step("8. Cancel the game, and the time frees itself (S11)")
+        self.step("9. Cancel the game, and the time frees itself (S11)")
         cancelled = alice.post(reverse("game_cancel", kwargs={"game_id": game_id}))
         self.expect(cancelled.status_code == 302, "the game could not be cancelled")
         self.says("Alice cancels", "the game is Cancelled; the invitation stays Accepted")
@@ -232,7 +260,7 @@ class Command(BaseCommand):
         self.expect(freed.ok, f"the freed time could not be used: {freed.error}")
         self.says("Carol's invitation now", "accepted - the time is free again (G-10)")
 
-        self.step("9. Block, cascade and report (S12)")
+        self.step("10. Block, cascade and report (S12)")
         pending = invitations.send(
             sender_account_id=carol_id, recipient_account_id=alice_id,
             starts_at=self.instant(day, "20:00"), ends_at=self.instant(day, "22:00"),
@@ -271,7 +299,7 @@ class Command(BaseCommand):
         )
         self.says("Alice reports Bob", "stored for review; Bob is not told")
 
-        self.step("10. Privacy, on every page Alice can reach")
+        self.step("11. Privacy, on every page Alice can reach")
         leaked = []
         for name in ("home", "profile", "availability", "search", "favorites",
                      "saved_searches", "invitations", "games", "notifications",

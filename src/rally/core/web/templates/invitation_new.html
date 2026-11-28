@@ -24,9 +24,20 @@
     {% if errors.end %}<p class="error">{{ errors.end }}</p>{% endif %}
   </div>
   <div class="field">
-    <label for="id_venue">Venue</label>
+    <label for="id_venue_code">Where to play</label>
+    <select name="venue_code" id="id_venue_code">
+      <option value="">Somewhere else — I will type it</option>
+      {% for venue in venues %}
+        <option value="{{ venue.code }}"{% if values.venue_code == venue.code %} selected{% endif %}>{{ venue.label }}</option>
+      {% endfor %}
+    </select>
+    <p class="hint">Places near {{ recipient.display_name }}'s area come first. Rally
+    does <strong>not</strong> book courts — arranging it stays between the two of you.</p>
+  </div>
+  <div class="field">
+    <label for="id_venue">Or type a venue</label>
     <input type="text" name="venue" id="id_venue" maxlength="100" value="{{ values.venue }}">
-    <p class="hint">Where you would like to play. Rally does not book courts.</p>
+    <p class="hint">Only needed if you did not pick one above.</p>
     {% if errors.venue %}<p class="error">{{ errors.venue }}</p>{% endif %}
   </div>
 
